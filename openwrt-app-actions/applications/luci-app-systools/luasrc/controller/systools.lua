@@ -88,13 +88,15 @@ function main_container(data, extra)
           required = true,
           title = "可执行操作",
           type = "string",
-          enum = {"turn_off_ipv6", "reset_rom_pkgs", "qb_reset_password", "disk_power_mode", "speedtest"},
+          enum = {"turn_off_ipv6", "reset_rom_pkgs", "qb_reset_password", "disk_power_mode", "speedtest", "openssl-aes256gcm", "openssl-chacha20-poly1305"},
           enumNames = {
             lng.translate("Turn off IPv6"), 
             lng.translate("Reset rom pkgs"), 
             lng.translate("Reset qBittorrent Password"),
             lng.translate("HDD hibernation Status"),
-            lng.translate("Run SpeedTest")
+            lng.translate("Run SpeedTest"),
+            "openssl speed -evp aes-256-gcm",
+            "openssl speed -evp chacha20-poly1305",
           }
         },
         {
@@ -136,6 +138,14 @@ end
 function get_data() 
   local tool = luci.http.formvalue("tool")
   local extra = {}
+
+  if not tool then
+    local has = luci.http.formvalue("speedtest")
+    if has and has ~= "" then
+      tool = "speedtest"
+    end
+  end
+
   if tool then
     if tool == "speedtest" then
       extra["speedTestServers"] = get_speedtest_servers()

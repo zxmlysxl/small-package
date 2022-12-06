@@ -29,7 +29,8 @@ PKG_CONFIG_DEPENDS:= \
 	CONFIG_PACKAGE_$(PKG_NAME)_INCLUDE_V2ray \
 	CONFIG_PACKAGE_$(PKG_NAME)_INCLUDE_V2ray_Plugin \
 	CONFIG_PACKAGE_$(PKG_NAME)_INCLUDE_Xray \
-	CONFIG_PACKAGE_$(PKG_NAME)_INCLUDE_Xray_Plugin
+	CONFIG_PACKAGE_$(PKG_NAME)_INCLUDE_Xray_Plugin \
+	CONFIG_PACKAGE_$(PKG_NAME)_INCLUDE_V2ray_Geodata
 
 LUCI_TITLE:=LuCI support for PassWall
 LUCI_PKGARCH:=all
@@ -55,7 +56,9 @@ LUCI_DEPENDS:=+coreutils +coreutils-base64 +coreutils-nohup +curl \
 	+PACKAGE_$(PKG_NAME)_INCLUDE_V2ray:v2ray-core \
 	+PACKAGE_$(PKG_NAME)_INCLUDE_V2ray_Plugin:v2ray-plugin \
 	+PACKAGE_$(PKG_NAME)_INCLUDE_Xray:xray-core \
-	+PACKAGE_$(PKG_NAME)_INCLUDE_Xray_Plugin:xray-plugin
+	+PACKAGE_$(PKG_NAME)_INCLUDE_Xray_Plugin:xray-plugin \
+	+PACKAGE_$(PKG_NAME)_INCLUDE_V2ray_Geodata:v2ray-geoip \
+	+PACKAGE_$(PKG_NAME)_INCLUDE_V2ray_Geodata:v2ray-geosite
 
 define Package/$(PKG_NAME)/config
 menu "Configuration"
@@ -159,6 +162,10 @@ config PACKAGE_$(PKG_NAME)_INCLUDE_Xray
 
 config PACKAGE_$(PKG_NAME)_INCLUDE_Xray_Plugin
 	bool "Include Xray-Plugin (Shadowsocks Plugin)"
+	default n
+
+config PACKAGE_$(PKG_NAME)_INCLUDE_V2ray_Geodata
+	bool "Include V2ray_Geodata"
 	default n
 
 endmenu
