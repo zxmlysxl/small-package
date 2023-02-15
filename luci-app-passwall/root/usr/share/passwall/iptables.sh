@@ -1137,10 +1137,6 @@ add_firewall_rule() {
 			msg="Socks 服务 [:${port}]"
 			if [ "$node" == "nil" ] || [ "$port" == "0" ]; then
 				msg="${msg} 未配置完全，略过"
-			elif [ "$(echo $node | grep ^tcp)" ]; then
-				#eval "node=\${TCP_NODE}"
-				#msg="${msg} 使用与 TCP 代理自动切换${num} 相同的节点，延后处理"
-				continue
 			else
 				filter_node $node TCP > /dev/null 2>&1 &
 				filter_node $node UDP > /dev/null 2>&1 &
@@ -1155,7 +1151,7 @@ add_firewall_rule() {
 		eval "node=\${${stream}_NODE}"
 		eval "port=\${${stream}_REDIR_PORT}"
 		#echolog "分析 $stream 代理自动切换..."
-		[ "$node" == "tcp" ] && [ "$stream" == "UDP" ] && {
+		[ "$stream" == "UDP" ] && [ "$node" == "tcp" ] && {
 			eval "node=\${TCP_NODE}"
 			eval "port=\${TCP_REDIR_PORT}"
 		}
@@ -1222,10 +1218,21 @@ add_firewall_rule() {
 	load_acl
 
 	# dns_hijack "force"
+	
+	for iface in $IFACES; do
+		$ipt_n -I PSW_OUTPUT -o $iface -j RETURN
+		$ipt_m -I PSW_OUTPUT -o $iface -j RETURN
+	done
 
 	[ -n "${is_tproxy}" -o -n "${udp_flag}" ] && {
+		bridge_nf_ipt=$(sysctl -e -n net.bridge.bridge-nf-call-iptables)
+		echo -n $bridge_nf_ipt > $TMP_PATH/bridge_nf_ipt
 		sysctl -w net.bridge.bridge-nf-call-iptables=0 >/dev/null 2>&1
-		[ "$PROXY_IPV6" == "1" ] && sysctl -w net.bridge.bridge-nf-call-ip6tables=0 >/dev/null 2>&1
+		[ "$PROXY_IPV6" == "1" ] && {
+			bridge_nf_ip6t=$(sysctl -e -n net.bridge.bridge-nf-call-ip6tables)
+			echo -n $bridge_nf_ip6t > $TMP_PATH/bridge_nf_ip6t
+			sysctl -w net.bridge.bridge-nf-call-ip6tables=0 >/dev/null 2>&1
+		}
 	}
 	echolog "防火墙规则加载完成！"
 }

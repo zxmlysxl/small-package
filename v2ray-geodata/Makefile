@@ -1,33 +1,33 @@
 # SPDX-License-Identifier: GPL-3.0-only
 #
-# Copyright (C) 2021 ImmortalWrt.org
+# Copyright (C) 2021-2022 ImmortalWrt.org
 
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=v2ray-geodata
-PKG_RELEASE:=1
+PKG_RELEASE:=$(AUTORELEASE)
 
 PKG_LICENSE_FILES:=LICENSE
 PKG_MAINTAINER:=Tianling Shen <cnsztl@immortalwrt.org>
 
 include $(INCLUDE_DIR)/package.mk
 
-GEOIP_VER:=202212220107
+GEOIP_VER:=202302090046
 GEOIP_FILE:=geoip.dat.$(GEOIP_VER)
 define Download/geoip
-  URL:=https://github.com/Loyalsoldier/geoip/releases/latest/download
-  URL_FILE:=geoip-only-cn-private.dat
+  URL:=https://github.com/v2fly/geoip/releases/download/$(GEOIP_VER)/
+  URL_FILE:=geoip.dat
   FILE:=$(GEOIP_FILE)
-  HASH:=skip
+  HASH:=38e200a655c3e401dde6a438e79d493c3dbdd224e104a5158bef01f78ad4a151
 endef
 
-GEOSITE_VER:=202212242209
-GEOSITE_FILE:=geosite.dat.$(GEOSITE_VER)
+GEOSITE_VER:=20230214100320
+GEOSITE_FILE:=dlc.dat.$(GEOSITE_VER)
 define Download/geosite
-  URL:=https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download
-  URL_FILE:=geosite.dat
+  URL:=https://github.com/v2fly/domain-list-community/releases/download/$(GEOSITE_VER)/
+  URL_FILE:=dlc.dat
   FILE:=$(GEOSITE_FILE)
-  HASH:=skip
+  HASH:=957028c33da31aed722ccd6bc01996b5a6d05cd82a07d529215ab8829aa68ac8
 endef
 
 define Package/v2ray-geodata/template

@@ -8,7 +8,7 @@ NAME=xray
 source /usr/share/xray/init.firewall
 
 uci_get_by_type() {
-    local ret=$(uci get ${NAME}.@$1[0].$2 2> /dev/null)
+    local ret=$(uci get ${NAME}.@$1[0].$2 2>/dev/null)
     echo ${ret:=$3}
 }
 
@@ -93,7 +93,7 @@ setup_dnsmasq() {
 }
 
 flush_dnsmasq() {
-    rm /tmp/dnsmasq.d/xray.conf
+    rm -f /tmp/dnsmasq.d/xray.conf
     /etc/init.d/dnsmasq restart > /dev/null 2>&1
 }
 
