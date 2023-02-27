@@ -127,8 +127,8 @@ return view.extend({
 		var proxy_nodes = {};
 		uci.sections(data[0], 'node', (res) => {
 			proxy_nodes[res['.name']] =
-				String.format('[%s] %s', res.type, res.label || (stubValidator.apply('ip6addr', res.address || '') ?
-					`[${res.address}]` : res.address) + ':' + res.port);
+			String.format('[%s] %s', res.type, res.label || (stubValidator.apply('ip6addr', res.address || '') ?
+				String.format('[%s]', res.address) : res.address) + ':' + res.port);
 		});
 
 		s = m.section(form.NamedSection, 'config', 'homeproxy');
@@ -153,7 +153,7 @@ return view.extend({
 		o.rmempty = false;
 
 		o = s.taboption('routing', form.Value, 'dns_server', _('DNS server'),
-			_('You can only have one server set. Custom DNS server format as plain IPv4/IPv6.'));
+			_('You can only have one server set. It MUST support TCP query.'));
 		o.value('wan', _('Use DNS server from WAN'));
 		o.value('1.1.1.1', _('CloudFlare Public DNS (1.1.1.1)'));
 		o.value('208.67.222.222', _('Cisco Public DNS (208.67.222.222)'));
@@ -167,9 +167,11 @@ return view.extend({
 		o.depends({'routing_mode': 'custom', '!reverse': true});
 		o.validate = function(section_id, value) {
 			if (section_id && !['local', 'wan'].includes(value)) {
+				let ipv6_support = this.map.lookupOption('ipv6_support', section_id)[0].formvalue(section_id);
+
 				if (!value)
 					return _('Expecting: %s').format(_('non-empty value'));
-				else if (!stubValidator.apply('ipaddr', value))
+				else if (!stubValidator.apply((ipv6_support === '1') ? 'ipaddr' : 'ip4addr', value))
 					return _('Expecting: %s').format(_('valid IP address'));
 			}
 
@@ -202,7 +204,7 @@ return view.extend({
 
 				var ports = [];
 				for (var i of value.split(',')) {
-					if (!stubValidator.apply('port', i))
+					if (!stubValidator.apply('port', i) && !stubValidator.apply('portrange', i))
 						return _('Expecting: %s').format(_('valid port value'));
 					if (ports.includes(i))
 						return _('Port %s alrealy exists!').format(i);
@@ -450,20 +452,20 @@ return view.extend({
 		so.modalonly = true;
 
 		so = ss.option(form.DynamicList, 'source_geoip', _('Source GeoIP'),
-			_('Match source geoip.'));
+			_('Match source GeoIP.'));
 		so.modalonly = true;
 
 		so = ss.option(form.DynamicList, 'geoip', _('GeoIP'),
-			_('Match geoip.'));
+			_('Match GeoIP.'));
 		so.modalonly = true;
 
 		so = ss.option(form.DynamicList, 'source_ip_cidr', _('Source IP CIDR'),
-			_('Match source ip cidr.'));
+			_('Match source IP CIDR.'));
 		so.datatype = 'or(cidr, ipaddr)';
 		so.modalonly = true;
 
 		so = ss.option(form.DynamicList, 'ip_cidr', _('IP CIDR'),
-			_('Match ip cidr.'));
+			_('Match IP CIDR.'));
 		so.datatype = 'or(cidr, ipaddr)';
 		so.modalonly = true;
 
@@ -524,7 +526,7 @@ return view.extend({
 		o.depends('routing_mode', 'custom');
 
 		ss = o.subsection;
-		so = ss.option(form.ListValue, 'dns_strategy', _('DNS strategy'),
+		so = ss.option(form.ListValue, 'default_strategy', _('Default DNS strategy'),
 			_('The DNS strategy for resolving the domain name in the address.'));
 		for (var i in hp.dns_strategy)
 			so.value(i, hp.dns_strategy[i]);
@@ -715,16 +717,16 @@ return view.extend({
 		so.modalonly = true;
 
 		so = ss.option(form.DynamicList, 'source_geoip', _('Source GeoIP'),
-			_('Match source geoip.'));
+			_('Match source GeoIP.'));
 		so.modalonly = true;
 
 		so = ss.option(form.DynamicList, 'source_ip_cidr', _('Source IP CIDR'),
-			_('Match source ip cidr.'));
+			_('Match source IP CIDR.'));
 		so.datatype = 'or(cidr, ipaddr)';
 		so.modalonly = true;
 
 		so = ss.option(form.DynamicList, 'ip_cidr', _('IP CIDR'),
-			_('Match ip cidr.'));
+			_('Match IP CIDR.'));
 		so.datatype = 'or(cidr, ipaddr)';
 		so.modalonly = true;
 
@@ -846,14 +848,6 @@ return view.extend({
 		so.default = 'disabled';
 		so.rmempty = false;
 
-		so = ss.taboption('lan_ip_policy', form.DynamicList, 'lan_direct_mac_addrs', _('Direct MAC addresses'));
-		so.datatype = 'macaddr';
-		so.depends('lan_proxy_mode', 'except_listed');
-		Object.keys(hosts).forEach(function(mac) {
-			var hint = hosts[mac].name || L.toArray(hosts[mac].ipaddrs || hosts[mac].ipv4)[0];
-			so.value(mac, hint ? '%s (%s)'.format(mac, hint) : mac);
-		});
-
 		so = ss.taboption('lan_ip_policy', form.DynamicList, 'lan_direct_ipv4_ips', _('Direct IPv4 IP-s'));
 		so.datatype = 'or(ip4addr, cidr4)';
 		so.depends('lan_proxy_mode', 'except_listed');
@@ -867,14 +861,7 @@ return view.extend({
 		L.sortedKeys(ip6addrs, null, 'addr').forEach(function(ipv6) {
 			so.value(ipv6, '%s (%s)'.format(ipv6, ip6addrs[ipv6]));
 		});
-
-		so = ss.taboption('lan_ip_policy', form.DynamicList, 'lan_proxy_mac_addrs', _('Proxy MAC addresses'));
-		so.datatype = 'macaddr';
-		so.depends('lan_proxy_mode', 'listed_only');
-		Object.keys(hosts).forEach(function(mac) {
-			var hint = hosts[mac].name || L.toArray(hosts[mac].ipaddrs || hosts[mac].ipv4)[0];
-			so.value(mac, hint ? '%s (%s)'.format(mac, hint) : mac);
-		});
+		so.depends('homeproxy.config.ipv6_support', '1');
 
 		so = ss.taboption('lan_ip_policy', form.DynamicList, 'lan_proxy_ipv4_ips', _('Proxy IPv4 IP-s'));
 		so.datatype = 'or(ip4addr, cidr4)';
@@ -889,13 +876,7 @@ return view.extend({
 		L.sortedKeys(ip6addrs, null, 'addr').forEach(function(ipv6) {
 			so.value(ipv6, '%s (%s)'.format(ipv6, ip6addrs[ipv6]));
 		});
-
-		so = ss.taboption('lan_ip_policy', form.DynamicList, 'lan_gaming_mode_mac_addrs', _('Gaming mode MAC addresses'));
-		so.datatype = 'macaddr';
-		Object.keys(hosts).forEach(function(mac) {
-			var hint = hosts[mac].name || L.toArray(hosts[mac].ipaddrs || hosts[mac].ipv4)[0];
-			so.value(mac, hint ? '%s (%s)'.format(mac, hint) : mac);
-		});
+		so.depends('homeproxy.config.ipv6_support', '1');
 
 		so = ss.taboption('lan_ip_policy', form.DynamicList, 'lan_gaming_mode_ipv4_ips', _('Gaming mode IPv4 IP-s'));
 		so.datatype = 'or(ip4addr, cidr4)';
@@ -908,6 +889,7 @@ return view.extend({
 		L.sortedKeys(ip6addrs, null, 'addr').forEach(function(ipv6) {
 			so.value(ipv6, '%s (%s)'.format(ipv6, ip6addrs[ipv6]));
 		});
+		so.depends('homeproxy.config.ipv6_support', '1');
 
 		so = ss.taboption('lan_ip_policy', form.DynamicList, 'lan_global_proxy_ipv4_ips', _('Global proxy IPv4 IP-s'));
 		so.datatype = 'or(ip4addr, cidr4)';
@@ -921,7 +903,7 @@ return view.extend({
 		L.sortedKeys(ip6addrs, null, 'addr').forEach(function(ipv6) {
 			so.value(ipv6, '%s (%s)'.format(ipv6, ip6addrs[ipv6]));
 		});
-		so.depends({'homeproxy.config.routing_mode': 'custom', '!reverse': true});
+		so.depends({'homeproxy.config.routing_mode': /^((?!custom).)+$/, 'homeproxy.config.ipv6_support': '1'});
 		/* LAN IP policy end */
 
 		/* WAN IP policy start */
@@ -932,12 +914,14 @@ return view.extend({
 
 		so = ss.taboption('wan_ip_policy', form.DynamicList, 'wan_proxy_ipv6_ips', _('Proxy IPv6 IP-s'));
 		so.datatype = 'or(ip6addr, cidr6)';
+		so.depends('homeproxy.config.ipv6_support', '1');
 
 		so = ss.taboption('wan_ip_policy', form.DynamicList, 'wan_direct_ipv4_ips', _('Direct IPv4 IP-s'));
 		so.datatype = 'or(ip4addr, cidr4)';
 
 		so = ss.taboption('wan_ip_policy', form.DynamicList, 'wan_direct_ipv6_ips', _('Direct IPv6 IP-s'));
 		so.datatype = 'or(ip6addr, cidr6)';
+		so.depends('homeproxy.config.ipv6_support', '1');
 		/* WAN IP policy end */
 
 		/* Proxy domain list start */
