@@ -105,7 +105,9 @@ function stream_h2(server) {
     if (server["transport"] == "h2") {
         return {
             path: server["h2_path"],
-            host: server["h2_host"]
+            host: server["h2_host"],
+            read_idle_timeout: server["h2_health_check"] == "1" ? int(server["h2_read_idle_timeout"] || 10) : null,
+            health_check_timeout: server["h2_health_check"] == "1" ? int(server["h2_health_check_timeout"] || 20) : null,
         }
     }
     return null;
@@ -204,16 +206,30 @@ function xtls_settings(server, protocol) {
     return result;
 }
 
-function stream_settings(server, protocol, xtls, tag) {
+function reality_settings(server, protocol) {
+    let result = {
+        show: server[protocol + "_reality_show"],
+        fingerprint: server[protocol + "_reality_fingerprint"],
+        serverName: server[protocol + "_reality_server_name"],
+        publicKey: server[protocol + "_reality_public_key"],
+        shortId: server[protocol + "_reality_short_id"],
+        spiderX: server[protocol + "_reality_spider_x"],
+    };
+
+    return result;
+}
+
+function stream_settings(server, protocol, tag) {
     const security = server[protocol + "_tls"];
     let tlsSettings = null;
     let xtlsSettings = null;
+    let realitySettings = null;
     if (security == "tls") {
         tlsSettings = tls_settings(server, protocol);
     } else if (security == "xtls") {
-        if (xtls) {
-            xtlsSettings = xtls_settings(server, protocol);
-        }
+        xtlsSettings = xtls_settings(server, protocol);
+    } else if (security == "reality") {
+        realitySettings = reality_settings(server, protocol);
     }
 
     let dialer_proxy = null;
@@ -233,6 +249,7 @@ function stream_settings(server, protocol, xtls, tag) {
             security: security,
             tlsSettings: tlsSettings,
             xtlsSettings: xtlsSettings,
+            realitySettings: realitySettings,
             quicSettings: stream_quic(server),
             tcpSettings: stream_tcp(server),
             kcpSettings: stream_kcp(server),
@@ -245,7 +262,7 @@ function stream_settings(server, protocol, xtls, tag) {
 }
 
 function shadowsocks_outbound(server, tag) {
-    const stream_settings_object = stream_settings(server, "shadowsocks", false, tag);
+    const stream_settings_object = stream_settings(server, "shadowsocks", tag);
     const stream_settings_result = stream_settings_object["stream_settings"];
     const dialer_proxy = stream_settings_object["dialer_proxy"];
     return {
@@ -270,7 +287,7 @@ function shadowsocks_outbound(server, tag) {
 }
 
 function vmess_outbound(server, tag) {
-    const stream_settings_object = stream_settings(server, "vmess", false, tag);
+    const stream_settings_object = stream_settings(server, "vmess", tag);
     const stream_settings_result = stream_settings_object["stream_settings"];
     const dialer_proxy = stream_settings_object["dialer_proxy"];
     return {
@@ -304,11 +321,13 @@ function vless_outbound(server, tag) {
         flow = server["vless_flow"]
     } else if (server["vless_tls"] == "tls") {
         flow = server["vless_flow_tls"]
+    } else if (server["vless_tls"] == "reality") {
+        flow = server["vless_flow_reality"]
     }
     if (flow == "none") {
         flow = null;
     }
-    const stream_settings_object = stream_settings(server, "vless", true, tag);
+    const stream_settings_object = stream_settings(server, "vless", tag);
     const stream_settings_result = stream_settings_object["stream_settings"];
     const dialer_proxy = stream_settings_object["dialer_proxy"];
     return {
@@ -344,7 +363,7 @@ function trojan_outbound(server, tag) {
     if (flow == "none") {
         flow = null;
     }
-    const stream_settings_object = stream_settings(server, "trojan", true, tag);
+    const stream_settings_object = stream_settings(server, "trojan", tag);
     const stream_settings_result = stream_settings_object["stream_settings"];
     const dialer_proxy = stream_settings_object["dialer_proxy"];
     return {
@@ -505,17 +524,61 @@ function fallbacks() {
     return f
 }
 
-function tls_inbound_settings() {
+function tls_inbound_settings(protocol_name) {
+    let wscert = proxy[protocol_name + "_tls_cert_file"];
+    if (wscert == null) {
+        wscert = proxy["web_server_cert_file"]
+    }
+    let wskey = proxy[protocol_name + "_tls_key_file"];
+    if (wskey == null) {
+        wskey = proxy["web_server_key_file"]
+    }
     return {
         alpn: [
             "http/1.1"
         ],
         certificates: [
             {
-                certificateFile: proxy["web_server_cert_file"],
-                keyFile: proxy["web_server_key_file"]
+                certificateFile: wscert,
+                keyFile: wskey
             }
         ]
+    }
+}
+
+function xtls_inbound_settings(protocol_name) {
+    let wscert = proxy[protocol_name + "_xtls_cert_file"];
+    if (wscert == null) {
+        wscert = proxy["web_server_cert_file"]
+    }
+    let wskey = proxy[protocol_name + "_xtls_key_file"];
+    if (wskey == null) {
+        wskey = proxy["web_server_key_file"]
+    }
+    return {
+        alpn: [
+            "http/1.1"
+        ],
+        certificates: [
+            {
+                certificateFile: wscert,
+                keyFile: wskey
+            }
+        ]
+    }
+}
+
+function reality_inbound_settings(protocol_name) {
+    return {
+        show: proxy[protocol_name + "_reality_show"],
+        dest: proxy[protocol_name + "_reality_dest"],
+        xver: proxy[protocol_name + "_reality_xver"],
+        serverNames: proxy[protocol_name + "_reality_server_names"],
+        privateKey: proxy[protocol_name + "_reality_private_key"],
+        minClientVer: proxy[protocol_name + "_reality_min_client_ver"],
+        maxClientVer: proxy[protocol_name + "_reality_max_client_ver"],
+        maxTimeDiff: proxy[protocol_name + "_reality_max_time_diff"],
+        shortIds: proxy[protocol_name + "_reality_short_ids"],
     }
 }
 
@@ -543,8 +606,8 @@ function https_trojan_inbound() {
         streamSettings: {
             network: "tcp",
             security: proxy["trojan_tls"],
-            tlsSettings: proxy["trojan_tls"] == "tls" ? tls_inbound_settings() : null,
-            xtlsSettings: proxy["trojan_tls"] == "xtls" ? tls_inbound_settings() : null
+            tlsSettings: proxy["trojan_tls"] == "tls" ? tls_inbound_settings("trojan") : null,
+            xtlsSettings: proxy["trojan_tls"] == "xtls" ? xtls_inbound_settings("trojan") : null
         }
     }
 }
@@ -555,6 +618,8 @@ function https_vless_inbound() {
         flow = proxy["vless_flow"]
     } else if (proxy["vless_tls"] == "tls") {
         flow = proxy["vless_flow_tls"]
+    } else if (proxy["vless_tls"] == "reality") {
+        flow = proxy["vless_flow_reality"]
     }
     if (flow == "none") {
         flow = null;
@@ -576,8 +641,9 @@ function https_vless_inbound() {
         streamSettings: {
             network: "tcp",
             security: proxy["vless_tls"],
-            tlsSettings: proxy["vless_tls"] == "tls" ? tls_inbound_settings() : null,
-            xtlsSettings: proxy["vless_tls"] == "xtls" ? tls_inbound_settings() : null
+            tlsSettings: proxy["vless_tls"] == "tls" ? tls_inbound_settings("vless") : null,
+            xtlsSettings: proxy["vless_tls"] == "xtls" ? xtls_inbound_settings("vless") : null,
+            realitySettings: proxy["vless_tls"] == "reality" ? reality_inbound_settings("vless") : null,
         }
     }
 }
@@ -647,7 +713,7 @@ function upstream_domain_names() {
 
 function domain_rules(k) {
     if (proxy[k] == null) {
-        return null
+        return []
     }
     return filter(proxy[k], function (x) {
         if (substr(x, 0, 8) == "geosite:") {
@@ -676,20 +742,12 @@ function dns_conf() {
         {
             address: fast_dns_object["address"],
             port: fast_dns_object["port"],
-            domains: upstream_domain_names(),
+            domains: [...upstream_domain_names(), ...fast_domain_rules()],
         },
         default_dns_object,
     ];
 
-    if (fast_domain_rules() != null) {
-        splice(servers, 1, 0, {
-            address: fast_dns_object["address"],
-            port: fast_dns_object["port"],
-            domains: fast_domain_rules(),
-        });
-    }
-
-    if (secure_domain_rules() != null) {
+    if (length(secure_domain_rules()) > 0) {
         const secure_dns_object = split_ipv4_host_port(proxy["secure_dns"], 53);
         splice(servers, 1, 0, {
             address: secure_dns_object["address"],
@@ -699,7 +757,7 @@ function dns_conf() {
     }
 
     let hosts = null;
-    if (blocked_domain_rules() != null) {
+    if (length(blocked_domain_rules()) > 0) {
         hosts = {};
         for (rule in (blocked_domain_rules())) {
             hosts[rule] = ["127.127.127.127", "100::6c62:636f:656b:2164"] // blocked!
@@ -968,7 +1026,7 @@ function rules() {
         })
     }
     if (proxy["tproxy_sniffing"] == "1") {
-        if (secure_domain_rules() != null) {
+        if (length(secure_domain_rules()) > 0) {
             splice(result, 0, 0, {
                 type: "field",
                 inboundTag: ["tproxy_udp_inbound"],
@@ -982,7 +1040,7 @@ function rules() {
                 domain: secure_domain_rules(),
             });
         }
-        if (blocked_domain_rules() != null) {
+        if (length(blocked_domain_rules()) > 0) {
             splice(result, 0, 0, {
                 type: "field",
                 inboundTag: ["tproxy_tcp_inbound", "tproxy_udp_inbound", "dns_conf_inbound"],
