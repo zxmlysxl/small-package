@@ -1001,6 +1001,13 @@ local function rules()
             outboundTag = "direct",
             domain = fast_domain_rules()
         })
+        if proxy.direct_bittorrent == "1" then
+            table.insert(result, 1, {
+                type = "field",
+                outboundTag: "direct",
+                protocol: ["bittorrent"]
+            })
+        end
     end
     for _, v in ipairs(manual_tproxy_rules()) do
         table.insert(result, 1, v)
@@ -1066,7 +1073,7 @@ end
 local function observatory()
     if proxy.observatory == "1" then
         return {
-            subjectSelector = {"tcp_outbound", "udp_outbound", "direct"},
+            subjectSelector = {"tcp_outbound", "udp_outbound", "direct", "manual_tproxy_force_forward"},
             probeInterval = "1s",
             probeUrl = "http://www.apple.com/library/test/success.html"
         }

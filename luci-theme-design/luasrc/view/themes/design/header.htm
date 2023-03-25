@@ -163,7 +163,7 @@
     <% end -%>
     <script src="<%=media%>/js/xhr.js?v=<%= ver.luciversion %>"></script>
 	<script src="<%=media%>/js/jquery.min.js?v=<%= ver.luciversion %>"></script>
-	<script src="<%=media%>/js/design.js?v=<%= ver.luciversion %>"></script>
+	<script src="<%=media%>/js/design.js?v=<%= ver.luciversion %>" async></script>
 	<style title="text/css" id="global-scroll">
 		::-webkit-scrollbar {
 			 width: 4px
@@ -186,7 +186,7 @@
 	<script>
 		function setTheme() {
 			let color_scheme = window.matchMedia('(prefers-color-scheme: dark)');
-			document.body.setAttribute('data-theme', color_scheme.matches && 'dark');
+			document.body.setAttribute('data-theme', color_scheme.matches? 'dark': 'light');
 		}
 		setTheme();
 		window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', setTheme);
@@ -224,6 +224,11 @@
 	<span class="showSide"></span>
 	<a class="brand" href="#"><%=boardinfo.hostname or "OpenWrt"%></a>
 		<div class="pull-right">
+		<script>
+			if ($(window).width() > 992) {
+        		$("header>.container>.brand").css("padding", "0 0px")
+	    	}
+		</script>
 		<%
 		-- calculate the number of unsaved changes
 		if tree.nodes[category] and tree.nodes[category].ucidata then
@@ -310,4 +315,3 @@
 					 </div>
 				 <%- end -%>
 				 <% if category then subtree("/" .. category .. "/", cattree) end %>
-

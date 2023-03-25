@@ -134,6 +134,7 @@ svn export https://github.com/x-wrt/luci/trunk/applications/luci-app-nft-qos
 svn export https://github.com/Lienol/openwrt-package/branches/other/lean/luci-app-autoreboot
 svn export https://github.com/Ysurac/openmptcprouter-feeds/trunk/luci-app-iperf
 svn export https://github.com/openwrt/packages/trunk/net/shadowsocks-libev
+svn export https://github.com/kenzok8/jell/trunk/gn
 
 git_sparse_clone master "https://github.com/coolsnowwolf/packages" "leanpack" net/miniupnpd net/mwan3 \
 net/amule net/baidupcs-web multimedia/gmediarender net/go-aliyundrive-webdav \
@@ -179,6 +180,7 @@ sed -i 's/\(+luci-compat\)/\1 +luci-theme-argonne/' luci-app-argonne-config/Make
 sed -i 's/ +uhttpd-mod-ubus//' luci-app-packet-capture/Makefile
 sed -i 's/	ip.neighbors/	luci.ip.neighbors/' luci-app-wifidog/luasrc/model/cbi/wifidog/wifidog_cfg.lua
 sed -i -e 's/nas/services/g' -e 's/NAS/Services/g' $(grep -rl 'nas\|NAS' luci-app-fileassistant)
+sed -i -e 's/nas/services/g' -e 's/NAS/Services/g' $(grep -rl 'nas\|NAS' luci-app-alist)
 sed -i 's/pkg_web_version:=.*/pkg_web_version:=$pkg_version/' alist/Makefile
 sed -i 's/option binpath '\''\/usr\/bin\/AdGuardHome\/AdGuardHome'\''/option binpath '\''\/usr\/bin\/AdGuardHome'\''/g' luci-app-adguardhome/root/etc/config/AdGuardHome
 rm -rf luci-app-adguardhome/po/zh_Hans

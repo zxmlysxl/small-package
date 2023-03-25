@@ -1053,7 +1053,14 @@ function rules() {
             inboundTag: ["tproxy_tcp_inbound", "tproxy_udp_inbound", "dns_conf_inbound", "https_inbound", "http_inbound"],
             outboundTag: "direct",
             domain: fast_domain_rules()
-        })
+        });
+        if (proxy["direct_bittorrent"] == "1") {
+            splice(result, 0, 0, {
+                type: "field",
+                outboundTag: "direct",
+                protocol: ["bittorrent"]
+            })
+        }
     }
     splice(result, 0, 0, ...manual_tproxy_rules());
     splice(result, 0, 0, ...bridge_rules());
@@ -1106,7 +1113,7 @@ function logging() {
 function observatory() {
     if (proxy["observatory"] == "1") {
         return {
-            subjectSelector: ["tcp_outbound", "udp_outbound", "direct"],
+            subjectSelector: ["tcp_outbound", "udp_outbound", "direct", "manual_tproxy_force_forward"],
             probeInterval: "1s",
             probeUrl: "http://www.apple.com/library/test/success.html"
         }
