@@ -434,8 +434,25 @@ svg {
     color: var(--bg) !important;
 }
 
-/** img retina **/
+/* file selector upload button */
+::file-selector-button {
+    transition: all .1s ease-in-out;
+    border-radius: 5px;
+    border: 3px solid #337ab7!important;
+    color: #fff!important;
+    background-color: #337ab7!important;
+    box-sizing: border-box;
+    cursor: pointer;
+}
+::file-selector-button:hover,
+::file-selector-button:focus,
+::file-selector-button:active {
+    color: #fff!important;
+    background-color: #6a65d6!important;
+    border-color: #6a65d6!important
+}
 
+/** img retina **/
 img[src*="/luci-static/resources/icons/port_up.png"] {
     background-image: url(../images/port_up.png);
     background-size: 32px 32px;
@@ -1251,8 +1268,6 @@ p#shadowsocksr_status {
     padding-top:6px;
 }
 
- 
-
 .main > .main-left > .nav > .slide {
     padding: 0;
     padding-top:8px;
@@ -1291,6 +1306,10 @@ p#shadowsocksr_status {
 
 .main .main-left .nav li.slide .menu.active::after {
   transform: rotate(90deg);
+}
+
+.main > .main-left > .nav > .slide > a[data-title="QuickStart"]:before {
+    content: "\e67e";
 }
 
 .main > .main-left > .nav > .slide > a[data-title="Status"]:before {
@@ -1336,12 +1355,10 @@ p#shadowsocksr_status {
   content: "\e7dd";
 }
 
-.main > .main-left > .nav > li > a[data-title="Inital Setup"]:before {
-    content: "\e67e";
-}
-
+.main > .main-left > .nav > li > a[data-title="Inital Setup"]:before,
+.main > .main-left > .nav > li > a[data-title="NetworkGuide"]:before,
 .main > .main-left > .nav > li > a[href="/cgi-bin/luci//admin/wizard"]:before {
-    content: "\e67e";
+    content: "\e719";
 }
 
 .main > .main-left > .nav > li > a[data-title="iStore"]:before {
@@ -1402,8 +1419,6 @@ p#shadowsocksr_status {
     margin-top: 8px;
     border-radius: 6px;
 }
-
-
 
 .main > .main-left > .nav > .slide > .slide-menu > .active {
     background-color: var(--activeColor);
@@ -1763,7 +1778,7 @@ td#__status-ifc-signal {
     width: auto !important;
     min-width: 80px;
     padding: 0px 8px 0px 8px;
-    max-width: 160px;
+    /* max-width: 160px; */
     border-radius: 8px;
     height: 35px;
     line-height: 35px;
@@ -2078,7 +2093,7 @@ div > .cbi-value:nth-of-type(2n) {
     height: 20px;
     line-height: 20px;
     min-width: 60px;
-    padding: 0;
+    /* padding: 0; */
     margin: 0;
 }
 
@@ -2385,12 +2400,12 @@ header > .container > .pull-right > * {
 }
 
 #xhr_poll_status > .label.success {
-    padding: 10px 0;
+    padding: 0.7rem 0;
     border-radius: 20px;
 }
 
 #xhr_poll_status_off {
-    padding: 10px 0;
+    padding: 0.7rem 0;
     border-radius: 20px;
 }
 
@@ -2405,13 +2420,15 @@ header > .container > .pull-right > * {
 }
 
 .notice {
-    background-color: var(--activeColor);
-    color: #fff;
+    color: var(--activeColor);
     font-size: .8rem;
-    padding: 2.8px 10px;
+    /* padding: 0.15rem; */
+    padding-right: 0.5rem;
     border-radius: 10px;
     z-index: 10;
-    top: 22px;
+    /* top: 1.45rem; */
+    font-size: 1.8rem;
+    font-family: design;
 }
 
 #refresh_on, #refresh_off {
@@ -2637,7 +2654,7 @@ header > .container > .pull-right > * {
 }
 
 .node-system-flashops .cbi-section {
-    padding: 0;
+    /* padding: 0; */
 }
 .node-system-flashops .cbi-section-descr {
     padding: 12px;
@@ -3023,11 +3040,6 @@ body.lang_pl.node-main-login .cbi-value-title {
     select {
         width: 100%;
     }
-    .label {
-        position: absolute;
-        right: 5px;
-        top: -70px;
-    }
 
     header {
         height: 55px;
@@ -3154,7 +3166,6 @@ body.lang_pl.node-main-login .cbi-value-title {
         width: 65%;
     }
 
-
     h2 {
         font-size: 1.2rem;
         text-transform: capitalize;
@@ -3188,7 +3199,6 @@ body.lang_pl.node-main-login .cbi-value-title {
     #memcache div div,
     #memtotal div div{
     }
-   
 
     .node-status-iptables > .main div > .cbi-map > form input[type="submit"]{
         margin: 0;
@@ -3223,6 +3233,13 @@ body.lang_pl.node-main-login .cbi-value-title {
     }
 }
 
+@media screen and (max-width: 315px) {
+    .label {
+        position: absolute;
+        right: 5px;
+        top: -70px;
+    }
+}
 
 /* fix http://192.168.2.1/cgi-bin/luci/admin/nlbw/usage */
 #intervalSelect {
@@ -3339,3 +3356,8 @@ form[action="/cgi-bin/luci/admin/network/wireless_join"] input[class="cbi-button
 .node-nas-fileassistant .fb-container .cbi-value-perm {
     display: table-cell;
 }
+/* fix luci-app-adguardhome style */
+.node-services-adguardhome input[onclick*="window.open('http://'+window.location.hostname+':"] {
+    line-height: 0;
+}
+

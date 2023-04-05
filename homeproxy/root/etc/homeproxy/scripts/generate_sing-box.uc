@@ -508,6 +508,16 @@ if (server_enabled === '1')
 						key_id: cfg.tls_acme_ea_keyid,
 						mac_key: cfg.tls_acme_ea_mackey
 					} : null
+				} : null,
+				reality: (cfg.tls_reality === '1') ? {
+					enabled: true,
+					private_key: cfg.tls_reality_private_key,
+					short_id: cfg.tls_reality_short_id,
+					max_time_difference: cfg.tls_reality_max_time_difference ? (cfg.max_time_difference + 's') : null,
+					handshake: {
+						server: cfg.tls_reality_server_addr,
+						server_port: cfg.tls_reality_server_port
+					}
 				} : null
 			} : null,
 
@@ -599,24 +609,8 @@ if (!isEmpty(main_node) || !isEmpty(default_outbound))
 		default_interface: default_interface
 	};
 
+/* Routing rules */
 if (!isEmpty(main_node)) {
-	/* Routing rules */
-	/* LAN ACL */
-	if (length(lan_proxy_ips)) {
-		if (dedicated_udp_node) {
-			push(config.route.rules, {
-				source_ip_cidr: lan_proxy_ips,
-				network: 'udp',
-				outbound: 'main-udp-out'
-			});
-		}
-
-		push(config.route.rules, {
-			source_ip_cidr: lan_proxy_ips,
-			outbound: 'main-out'
-		});
-	}
-
 	/* Direct list */
 	if (length(direct_domain_list))
 		push(config.route.rules, {

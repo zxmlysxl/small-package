@@ -16,7 +16,6 @@ local PROXY_MODE = var["-PROXY_MODE"]
 local NO_PROXY_IPV6 = var["-NO_PROXY_IPV6"]
 local NO_LOGIC_LOG = var["-NO_LOGIC_LOG"]
 local NFTFLAG = var["-NFTFLAG"]
-local LOG_FILE = api.LOG_FILE
 local CACHE_PATH = api.CACHE_PATH
 local CACHE_FLAG = "dnsmasq_" .. FLAG
 local CACHE_DNS_PATH = CACHE_PATH .. "/" .. CACHE_FLAG
@@ -36,12 +35,7 @@ local function log(...)
 	if NO_LOGIC_LOG == "1" then
 		return
 	end
-	local f, err = io.open(LOG_FILE, "a")
-	if f and err == nil then
-		local str = os.date("%Y-%m-%d %H:%M:%S: ") .. table.concat({...}, " ")
-		f:write(str .. "\n")
-		f:close()
-	end
+	api.log(...)
 end
 
 local function check_dns(domain, dns)
@@ -169,11 +163,11 @@ local gfwlist = PROXY_MODE:find("gfwlist")
 local only_global
 
 local dnsmasq_default_dns
-if CHNROUTE_MODE_DEFAULT_DNS ~= "nil" and chnlist then
-	if CHNROUTE_MODE_DEFAULT_DNS == "remote" then
+if CHNROUTE_MODE_DEFAULT_DNS ~= "nil" then
+	if chnlist and CHNROUTE_MODE_DEFAULT_DNS == "remote" then
 		dnsmasq_default_dns = TUN_DNS
 	end
-	if CHNROUTE_MODE_DEFAULT_DNS == "chinadns_ng" and CHINADNS_DNS ~= "0" then
+	if (chnlist or gfwlist) and CHNROUTE_MODE_DEFAULT_DNS == "chinadns_ng" and CHINADNS_DNS ~= "0" then
 		dnsmasq_default_dns = CHINADNS_DNS
 	end
 end
