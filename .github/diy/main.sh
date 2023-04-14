@@ -84,7 +84,7 @@ git clone --depth 1 https://github.com/LGA1150/openwrt-sysuh3c && mvdir openwrt-
 git clone --depth 1 https://github.com/Hyy2001X/AutoBuild-Packages && rm -rf AutoBuild-Packages/luci-app-adguardhome && mvdir AutoBuild-Packages
 git clone --depth 1 https://github.com/sirpdboy/sirpdboy-package && mv -n sirpdboy-package/luci-app-dockerman ./ ; rm -rf sirpdboy-package 
 git clone --depth 1 https://github.com/gdck/luci-app-cupsd cupsd1 && mv -n cupsd1/luci-app-cupsd cupsd1/cups/cups ./ ; rm -rf cupsd1
-git clone --depth 1 https://github.com/kenzok8/wall && mv -n wall/* ./ ; rm -rf alist && rm -rf wall
+git clone --depth 1 https://github.com/kenzok8/wall && mv -n wall/* ./ ; rm -rf {alist,mosdns} && rm -rf wall
 git clone --depth 1 https://github.com/peter-tank/luci-app-fullconenat
 git clone --depth 1 https://github.com/sirpdboy/sirpdboy-package && mv -n sirpdboy-package/luci-app-dockerman ./ ; rm -rf sirpdboy-package
 git clone --depth 1 https://github.com/sundaqiang/openwrt-packages && mv -n openwrt-packages/luci-* ./; rm -rf openwrt-packages
@@ -115,8 +115,9 @@ git clone --depth 1 https://github.com/vernesong/OpenClash && mv -n OpenClash/lu
 git clone --depth 1 https://github.com/messense/aliyundrive-webdav aliyundrive && mv -n aliyundrive/openwrt/* ./ ; rm -rf aliyundrive
 git clone --depth 1 https://github.com/messense/aliyundrive-fuse aliyundrive && mv -n aliyundrive/openwrt/* ./;rm -rf aliyundrive
 git clone --depth 1 https://github.com/kenzok8/litte && mv -n litte/luci-theme-atmaterial_new litte/luci-theme-mcat litte/luci-theme-tomato ./ ; rm -rf litte
-git clone --depth 1 https://github.com/fw876/helloworld && mv -n helloworld/luci-app-ssr-plus helloworld/naiveproxy ./ ; rm -rf helloworld
-git clone --depth 1 https://github.com/QiuSimons/openwrt-mos && mv -n openwrt-mos/luci-app-mosdns ./ ; rm -rf openwrt-mos
+git clone --depth 1 https://github.com/fw876/helloworld && mv -n helloworld/luci-app-ssr-plus ./ ; rm -rf helloworld
+#git clone --depth 1 https://github.com/QiuSimons/openwrt-mos && mv -n openwrt-mos/luci-app-mosdns ./ ; rm -rf openwrt-mos
+git clone --depth 1 https://github.com/sbwml/luci-app-mosdns openwrt-mos && mv -n openwrt-mos/{*mosdns,v2dat} ./; rm -rf openwrt-mos
 git clone --depth 1 https://github.com/xiaorouji/openwrt-passwall2 passwall2 && mv -n passwall2/luci-app-passwall2 ./;rm -rf passwall2
 git clone --depth 1 -b luci https://github.com/xiaorouji/openwrt-passwall passwall && mv -n passwall/luci-app-passwall ./;rm -rf passwall
 git clone --depth 1 https://github.com/SSSSSimon/tencentcloud-openwrt-plugin-ddns && mv -n tencentcloud-openwrt-plugin-ddns/tencentcloud_ddns ./luci-app-tencentddns; rm -rf tencentcloud-openwrt-plugin-ddns
@@ -168,6 +169,8 @@ sed -i \
 -e 's?2. Clash For OpenWRT?3. Applications?' \
 -e 's?\.\./\.\./luci.mk?$(TOPDIR)/feeds/luci/luci.mk?' \
 -e 's/ca-certificates/ca-bundle/' \
+-e 's/php7/php8/g' \
+-e 's/+docker /+docker +dockerd /g' \
 */Makefile
 
 sed -i 's/luci-lib-ipkg/luci-base/g' luci-app-store/Makefile
@@ -182,8 +185,7 @@ sed -i 's/ +uhttpd-mod-ubus//' luci-app-packet-capture/Makefile
 sed -i 's/	ip.neighbors/	luci.ip.neighbors/' luci-app-wifidog/luasrc/model/cbi/wifidog/wifidog_cfg.lua
 sed -i -e 's/nas/services/g' -e 's/NAS/Services/g' $(grep -rl 'nas\|NAS' luci-app-fileassistant)
 sed -i -e 's/nas/services/g' -e 's/NAS/Services/g' $(grep -rl 'nas\|NAS' luci-app-alist)
-sed -i 's/pkg_web_version:=.*/pkg_web_version:=$pkg_version/' alist/Makefile
 sed -i '65,73d' adguardhome/Makefile
-sed -i 's/mosdns-v5/mosdns/g' luci-app-mosdns/Makefile
+
 exit 0
 
