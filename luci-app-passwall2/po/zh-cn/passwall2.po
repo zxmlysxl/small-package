@@ -118,12 +118,6 @@ msgstr "直连 DNS EDNS Client Subnet"
 msgid "Remote DNS Protocol"
 msgstr "远程 DNS 协议"
 
-msgid "Only Proxy FakeDNS"
-msgstr "仅代理 FakeDNS"
-
-msgid "When selected, only FakeDNS domain to proxy."
-msgstr "当勾选时，只会代理 FakeDNS 域名。"
-
 msgid "Remote DNS"
 msgstr "远程 DNS"
 
@@ -145,8 +139,17 @@ msgstr "直连查询策略"
 msgid "Remote Query Strategy"
 msgstr "远程查询策略"
 
+msgid "Use FakeDNS work in the shunt domain that proxy."
+msgstr "需要代理的分流规则域名使用 FakeDNS。"
+
 msgid "Domain Override"
 msgstr "域名重写"
+
+msgid "Clear IPSET"
+msgstr "清空 IPSET"
+
+msgid "Try this feature if the rule modification does not take effect."
+msgstr "如果修改规则后没有生效，请尝试此功能。"
 
 msgid "About DNS issues:"
 msgstr "关于DNS问题："
@@ -943,6 +946,9 @@ msgstr "额外的对称加密密钥"
 msgid "Local Address"
 msgstr "本地地址"
 
+msgid "Decimal numbers separated by \",\" or Base64-encoded strings."
+msgstr "用“,”隔开的十进制数字或 Base64 编码字符串。"
+
 msgid "Camouflage Type"
 msgstr "伪装类型"
 
@@ -1164,6 +1170,9 @@ msgstr "无法移动新文件到：%s"
 
 msgid "Mux concurrency"
 msgstr "最大并发连接数"
+
+msgid "XUDP Mux concurrency"
+msgstr "XUDP 最大并发连接数"
 
 msgid "Mux idle timeout"
 msgstr "最大闲置时间"

@@ -230,12 +230,7 @@ o = s:option(ListValue, "remote_dns_protocol", translate("Remote DNS Protocol"))
 o:value("tcp", "TCP")
 o:value("doh", "DoH")
 o:value("udp", "UDP")
-o:value("fakedns", "FakeDNS")
 o:depends({ node = "default",  ['!reverse'] = true })
-
-o = s:option(Flag, "only_proxy_fakedns", translate("Only Proxy FakeDNS"), translate("When selected, only FakeDNS domain to proxy."))
-o.default = "0"
-o:depends("remote_dns_protocol", "fakedns")
 
 ---- DNS Forward
 o = s:option(Value, "remote_dns", translate("Remote DNS"))
@@ -273,16 +268,27 @@ o.datatype = "ipaddr"
 o:depends("remote_dns_protocol", "tcp")
 o:depends("remote_dns_protocol", "doh")
 
+o = s:option(Flag, "remote_fakedns", "FakeDNS", translate("Use FakeDNS work in the shunt domain that proxy."))
+o.default = "0"
+o.rmempty = false
+o:depends("remote_dns_protocol", "tcp")
+o:depends("remote_dns_protocol", "doh")
+o:depends("remote_dns_protocol", "udp")
+
 o = s:option(ListValue, "remote_dns_query_strategy", translate("Remote Query Strategy"))
 o.default = "UseIPv4"
 o:value("UseIP")
 o:value("UseIPv4")
 o:value("UseIPv6")
-o:depends({ node = "default",  ['!reverse'] = true })
+o:depends("remote_dns_protocol", "tcp")
+o:depends("remote_dns_protocol", "doh")
+o:depends("remote_dns_protocol", "udp")
 
 hosts = s:option(TextValue, "dns_hosts", translate("Domain Override"))
 hosts.rows = 5
 hosts.wrap = "off"
-hosts:depends({ node = "default",  ['!reverse'] = true })
+hosts:depends("remote_dns_protocol", "tcp")
+hosts:depends("remote_dns_protocol", "doh")
+hosts:depends("remote_dns_protocol", "udp")
 
 return m
