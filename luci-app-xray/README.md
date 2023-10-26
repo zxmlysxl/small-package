@@ -38,6 +38,14 @@ Then find `luci-app-xray` under `Extra Packages`.
 
 * 2023-09-26 Version 3.0.0 merge master
 * 2023-09-27 fix: sniffing inboundTag; fix: upstream_domain_names
+* 2023-10-01 fix: default configuration
+* 2023-10-06 chore: code cleanup
+* 2023-10-19 feat: detailed status page via metrics
+* 2023-10-20 feat: better network interface control. **Requires reselection of LAN interfaces in** `Xray (preview)` -> `LAN Hosts Access Control`
+
+## Changelog since 3.1.0
+
+* 2023-10-24 chore: bump version
 
 ## Star History
 

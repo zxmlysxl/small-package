@@ -53,7 +53,7 @@ o.default = false
 
 o = s:taboption("basic", Flag, "apple_optimization", translate("Apple domains optimization"), translate("For Apple domains equipped with Chinese mainland CDN, always responsive to Chinese CDN IP addresses"))
 o:depends("custom_local_dns", "1")
-o.default = true
+o.default = false
 
 o = s:taboption("basic", DynamicList, "local_dns", translate("China DNS server"))
 o:value("119.29.29.29", translate("Tencent Public DNS (119.29.29.29)"))
@@ -66,6 +66,7 @@ o:value("180.76.76.76", translate("Baidu Public DNS (180.76.76.76)"))
 o:value("https://doh.pub/dns-query", translate("Tencent Public DNS (DNS over HTTPS)"))
 o:value("quic://dns.alidns.com", translate("Aliyun Public DNS (DNS over QUIC)"))
 o:value("https://dns.alidns.com/dns-query", translate("Aliyun Public DNS (DNS over HTTPS)"))
+o:value("h3://dns.alidns.com/dns-query", translate("Aliyun Public DNS (DNS over HTTPS/3)"))
 o:value("https://doh.360.cn/dns-query", translate("360 Public DNS (DNS over HTTPS)"))
 o:depends("custom_local_dns", "1")
 
@@ -120,20 +121,14 @@ o.rmempty = false
 o.default = false
 o:depends("configfile", "/etc/mosdns/config.yaml")
 
-o = s:taboption("advanced", Flag, "enable_http3_local", translate("Local DNS Enable HTTP/3"), translate("Enable DoH HTTP/3 protocol for Local DNS, Upstream DNS server support is required (Experimental)"))
-o.rmempty = false
-o.default = false
-o:depends("custom_local_dns", "1")
-
-o = s:taboption("advanced", Flag, "enable_http3_remote", translate("Remote DNS Enable HTTP/3"), translate("Enable DoH HTTP/3 protocol for Remote DNS, Upstream DNS server support is required (Experimental)"))
+o = s:taboption("advanced", Flag, "enable_ecs_remote", translate("Enable EDNS client subnet"))
 o.rmempty = false
 o.default = false
 o:depends("configfile", "/etc/mosdns/config.yaml")
 
-o = s:taboption("advanced", Flag, "enable_ecs_remote", translate("Enable EDNS client subnet"), translate("Add the EDNS Client Subnet option (ECS) to Remote DNS") .. '<br />' .. translate("MosDNS will auto identify the IP address subnet segment of your remote connection (0/24)") .. '<br />' .. translate("If your remote access network changes, May need restart MosDNS to update the ECS request address"))
-o.rmempty = false
-o.default = false
-o:depends("configfile", "/etc/mosdns/config.yaml")
+o = s:taboption("advanced", Value, "remote_ecs_ip", translate("IP Address"), translate("Please provide the IP address you use when accessing foreign websites. This IP subnet (0/24) will be used as the ECS address for Remote DNS requests") .. '<br />' .. translate("This feature is typically used when using a self-built DNS server as an Remote DNS upstream (requires support from the upstream server)"))
+o.datatype = "ipaddr"
+o:depends("enable_ecs_remote", "1")
 
 o = s:taboption("advanced", Flag, "dns_leak", translate("Prevent DNS Leaks"), translate("Enable this option fallback policy forces forwarding to remote DNS"))
 o.rmempty = false
@@ -176,11 +171,12 @@ o.default = false
 
 o = s:taboption("advanced", DynamicList, "ad_source", translate("ADblock Source"), translate("When using custom rule sources, please use rule types supported by MosDNS (domain lists).") .. '<br />' .. translate("Support for local files, such as: file:///var/mosdns/example.txt"))
 o:depends("adblock", "1")
+o.default = "geosite.dat"
 o:value("geosite.dat", "v2ray-geosite")
 o:value("https://raw.githubusercontent.com/privacy-protection-tools/anti-AD/master/anti-ad-domains.txt", "anti-AD")
+o:value("https://raw.githubusercontent.com/Cats-Team/AdRules/main/mosdns_adrules.txt", "Cats-Team/AdRules")
 o:value("https://raw.githubusercontent.com/ookangzheng/dbl-oisd-nl/master/dbl_light.txt", "oisd (small)")
 o:value("https://raw.githubusercontent.com/ookangzheng/dbl-oisd-nl/master/dbl.txt", "oisd (big)")
-o:value("https://raw.githubusercontent.com/QiuSimons/openwrt-mos/master/dat/serverlist.txt", "QiuSimons/openwrt-mos")
 
 o = s:taboption("basic",  Button, "_reload", translate("Restart-Service"), translate("Restart the MosDNS process to take effect of new configuration"))
 o.write = function()

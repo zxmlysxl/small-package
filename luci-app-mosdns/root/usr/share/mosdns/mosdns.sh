@@ -46,7 +46,7 @@ get_adlist() (
             fi
         done
     else
-        rm -rf /etc/mosdns/rule/adlist /etc/mosdns/rule/.ad_source /etc/mosdns/rule/adlist.txt
+        rm -rf /etc/mosdns/rule/adlist /etc/mosdns/rule/.ad_source
         touch /var/disable-ads.txt
         echo "        - \"/var/disable-ads.txt\""
     fi
@@ -127,11 +127,6 @@ restart_service() {
     /etc/init.d/mosdns restart
 }
 
-ecs_remote() {
-    ipaddr=$(curl -s --user-agent "curl/8.2.1" --connect-timeout 3 -H "Host:v4.ident.me" 49.12.234.183) || ipaddr=110.34.181.1
-    echo "ecs ${ipaddr%.*}.0/24"
-}
-
 flush_cache() {
     curl -s 127.0.0.1:$(uci -q get mosdns.config.listen_port_api)/plugins/lazy_cache/flush || exit 1
 }
@@ -179,9 +174,6 @@ case $script_action in
     ;;
     "adlist_update")
         adlist_update && [ "$has_update" -eq 1 ] && restart_service
-    ;;
-    "ecs_remote")
-        ecs_remote
     ;;
     "flush")
         flush_cache

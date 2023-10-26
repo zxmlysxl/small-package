@@ -1,7 +1,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=UA2F
-PKG_VERSION:=4.3.3
+PKG_VERSION:=4.4.0
 PKG_RELEASE:=1
 
 PKG_LICENSE:=GPL-3.0-only
@@ -23,6 +23,7 @@ define Package/ua2f
     +libnetfilter-conntrack \
     +libnetfilter-queue \
     +libpthread \
+    +libuci \
     +USE_GLIBC:libasan \
     +(PACKAGE_nftables-json||PACKAGE_nftables-nojson):kmod-nft-queue \
     +PACKAGE_firewall:iptables-mod-conntrack-extra \
