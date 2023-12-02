@@ -34,6 +34,16 @@ Choose one below:
 
 Then find `luci-app-xray` under `Extra Packages`.
 
+## Changelog since 3.1.0
+
+* 2023-10-24 chore: bump version
+* 2023-10-25 fix: set required for some fields; remove unused code
+* 2023-10-26 fix: allow empty selection for extra inbound outbound balancer
+* 2023-10-30 fix: blocked as nxdomain for IPv6
+* 2023-10-31 chore: bump version to 3.1.1
+* 2023-11-01 feat: custom configuration hook
+* 2023-11-02 feat: specify DNS to resolve outbound server name
+
 ## Changelog since 3.0.0
 
 * 2023-09-26 Version 3.0.0 merge master
@@ -42,10 +52,6 @@ Then find `luci-app-xray` under `Extra Packages`.
 * 2023-10-06 chore: code cleanup
 * 2023-10-19 feat: detailed status page via metrics
 * 2023-10-20 feat: better network interface control. **Requires reselection of LAN interfaces in** `Xray (preview)` -> `LAN Hosts Access Control`
-
-## Changelog since 3.1.0
-
-* 2023-10-24 chore: bump version
 
 ## Star History
 

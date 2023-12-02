@@ -10,6 +10,9 @@ const variant = "xray_core";
 function destination_format(k) {
     return function (s) {
         const dest = uci.get(variant, s, k) || [];
+        if (dest.length == 0) {
+            return "<i>direct</i>";
+        }
         return dest.map(v => uci.get(variant, v, "alias")).join(", ");
     };
 }
@@ -139,7 +142,6 @@ return view.extend({
         destination.depends("specify_outbound", "1");
         destination.datatype = "uciname";
         destination.textvalue = destination_format("destination");
-        destination.rmempty = false;
 
         const servers = uci.sections(config_data, "servers");
         if (servers.length == 0) {
@@ -256,6 +258,12 @@ return view.extend({
 
         let ttl_hop_limit_match = s.taboption('dynamic_direct', form.Value, 'ttl_hop_limit_match', _('TTL / Hop Limit Match'), _("Only override TTL / hop limit for packets with specific TTL / hop limit."));
         ttl_hop_limit_match.datatype = 'uinteger';
+
+        s.tab('custom_options', _('Custom Options'));
+        let custom_configuration_hook = s.taboption('custom_options', form.TextValue, 'custom_configuration_hook', _('Custom Configuration Hook'), _('Read <a href="https://ucode.mein.io/">ucode Documentation</a> for the language used. Code filled here may need to change after upgrading luci-app-xray.'));
+        custom_configuration_hook.placeholder = "return function(config) {\n    return config;\n};";
+        custom_configuration_hook.monospace = true;
+        custom_configuration_hook.rows = 20;
 
         return m.render();
     }
