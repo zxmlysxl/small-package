@@ -102,7 +102,7 @@ tolog "02. Start querying plugin version..."
 
 # Get the latest version
 latest_version="$(
-    curl -fsSL \
+    curl -fsSL -m 10 \
         https://github.com/ophub/luci-app-amlogic/releases |
         grep -oE 'expanded_assets/[0-9]+.[0-9]+.[0-9]+(-[0-9]+)?' | sed 's|expanded_assets/||' |
         sort -urV | head -n 1
@@ -122,6 +122,7 @@ else
 
     # Set the plugin download path
     download_repo="https://github.com/ophub/luci-app-amlogic/releases/download"
+
     plugin_file="${download_repo}/${latest_version}/luci-app-amlogic_${latest_version}_all.ipk"
     language_file="${download_repo}/${latest_version}/luci-i18n-amlogic-zh-cn_${latest_version}_all.ipk"
 
