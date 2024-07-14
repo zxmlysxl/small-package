@@ -1,6 +1,5 @@
 # UA2F
 
-[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FZxilly%2FUA2F.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2FZxilly%2FUA2F?ref=badge_shield)
 [![CodeQL](https://github.com/Zxilly/UA2F/actions/workflows/codeql.yml/badge.svg)](https://github.com/Zxilly/UA2F/actions/workflows/codeql.yml)
 [![Build OpenWRT Package](https://github.com/Zxilly/UA2F/actions/workflows/ci.yml/badge.svg)](https://github.com/Zxilly/UA2F/actions/workflows/ci.yml)
 
@@ -10,7 +9,7 @@
 
 > 由于新加入的 CONNMARK 影响，编译内核时需要添加 `NETFILTER_NETLINK_GLUE_CT` flag
 
-## uci command
+## Commands
 
 ```bash
 # 启用 UA2F
@@ -40,6 +39,9 @@ service ua2f enable
 
 # 启动 UA2F
 service ua2f start
+
+# 读取日志
+logread | grep UA2F
 ```
 
 ## 自定义 User-Agent
@@ -63,13 +65,16 @@ uci commit ua2f
 
 ## 在非 OpenWRT 系统上运行
 
-自 `v4.5.0 起`，UA2F 支持在非 OpenWRT 系统上运行，但是需要手动配置防火墙规则，将需要处理的流量转发到 `netfilter-queue` 的 10010 队列中。
+自 `v4.5.0` 起，UA2F 支持在非 OpenWRT 系统上运行，但是需要手动配置防火墙规则，将需要处理的流量转发到 `netfilter-queue` 的 10010 队列中。
 
 编译时，需要添加 `-DUA2F_ENABLE_UCI=OFF` flag 至 CMake。
 
 ## TODO
 
 - [ ] pthread 支持，由不同线程完成入队出队
+- [ ] 重写正则匹配为 parser
+- [ ] 以连接为单位维护 parser 状态
 
 ## License
-[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FZxilly%2FUA2F.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2FZxilly%2FUA2F?ref=badge_large)
+
+[GPL-3.0](./LICENSE)

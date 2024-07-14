@@ -11,15 +11,31 @@ return view.extend({
         s.addremove = false;
         s.anonymous = true;
 
-        s.tab("ttl_override", _("TTL Override"));
+        s.tab("dns_hijack", _("DNS Hijacking"));
 
-        let ttl_override = s.taboption('ttl_override', form.Value, 'ttl_override', _('Override IPv4 TTL'), _("Strongly not recommended. Only used for some network environments with specific restrictions."));
+        let dns_tcp_hijack = s.taboption('dns_hijack', form.Value, 'dns_tcp_hijack', _('Hijack TCP DNS Requests'), _("Redirect all outgoing TCP requests with destination port 53 to the address specified. In most cases not necessary."));
+        dns_tcp_hijack.datatype = 'ip4addrport';
+
+        let dns_udp_hijack = s.taboption('dns_hijack', form.Value, 'dns_udp_hijack', _('Hijack UDP DNS Requests'), _("Redirect all outgoing UDP requests with destination port 53 to the address specified. Recommended to use <code>127.0.0.1:53</code>."));
+        dns_udp_hijack.datatype = 'ip4addrport';
+
+        s.tab("firewall", _("Extra Firewall Options"));
+
+        let mark = s.taboption('firewall', form.Value, 'mark', _('Socket Mark Number'), _('Avoid proxy loopback problems with local (gateway) traffic'));
+        mark.datatype = 'range(1, 255)';
+        mark.placeholder = 255;
+
+        let firewall_priority = s.taboption('firewall', form.Value, 'firewall_priority', _('Priority for Firewall Rules'), _('See firewall status page for rules Xray used and <a href="https://wiki.nftables.org/wiki-nftables/index.php/Netfilter_hooks#Priority_within_hook">Netfilter Internal Priority</a> for reference.'));
+        firewall_priority.datatype = 'range(-49, 49)';
+        firewall_priority.placeholder = 10;
+
+        let ttl_override = s.taboption('firewall', form.Value, 'ttl_override', _('Override IPv4 TTL'), _("Strongly not recommended. Only used for some network environments with specific restrictions."));
         ttl_override.datatype = 'uinteger';
 
-        let hop_limit_override = s.taboption('ttl_override', form.Value, 'hop_limit_override', _('Override IPv6 Hop Limit'), _("Strongly not recommended. Only used for some network environments with specific restrictions."));
+        let hop_limit_override = s.taboption('firewall', form.Value, 'hop_limit_override', _('Override IPv6 Hop Limit'), _("Strongly not recommended. Only used for some network environments with specific restrictions."));
         hop_limit_override.datatype = 'uinteger';
 
-        let ttl_hop_limit_match = s.taboption('ttl_override', form.Value, 'ttl_hop_limit_match', _('TTL / Hop Limit Match'), _("Only override TTL / hop limit for packets with specific TTL / hop limit."));
+        let ttl_hop_limit_match = s.taboption('firewall', form.Value, 'ttl_hop_limit_match', _('TTL / Hop Limit Match'), _("Only override TTL / hop limit for packets with specific TTL / hop limit."));
         ttl_hop_limit_match.datatype = 'uinteger';
 
         s.tab("sniffing", _("Sniffing"));
@@ -43,8 +59,17 @@ return view.extend({
         dynamic_direct_timeout.datatype = 'uinteger';
         dynamic_direct_timeout.placeholder = 300;
 
-        s.tab('custom_options', _('Custom Options'));
-        let custom_config = s.taboption('custom_options', form.TextValue, 'custom_config', _('Custom Configurations'), _('Check <code>/var/etc/xray/config.json</code> for tags of generated inbounds and outbounds. See <a href="https://xtls.github.io/config/features/multiple.html">here</a> for help'));
+        s.tab('deprecated', _('Deprecated Features'));
+
+        let socks_port = s.taboption('deprecated', form.Value, 'socks_port', _('Socks5 proxy port'), _("Deprecated for security concerns and will be removed in next major version. Use Extra Inbound instead."));
+        socks_port.datatype = 'port';
+        socks_port.placeholder = 1080;
+
+        let http_port = s.taboption('deprecated', form.Value, 'http_port', _('HTTP proxy port'), _("Deprecated for security concerns and will be removed in next major version. Use Extra Inbound instead."));
+        http_port.datatype = 'port';
+        http_port.placeholder = 1081;
+
+        let custom_config = s.taboption('deprecated', form.TextValue, 'custom_config', _('Custom Configurations'), _('See <a href="https://xtls.github.io/config/features/multiple.html">here</a> for help. Deprecated and will be removed in next major version.'));
         custom_config.monospace = true;
         custom_config.rows = 20;
         custom_config.validate = shared.validate_object;
