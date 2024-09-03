@@ -1,9 +1,9 @@
 #include "handler.h"
+#include <arpa/inet.h>
 #include "cache.h"
 #include "custom.h"
 #include "statistics.h"
 #include "util.h"
-#include <arpa/inet.h>
 
 #ifdef UA2F_ENABLE_UCI
 #include "config.h"
@@ -27,6 +27,9 @@ static char *replacement_user_agent_string = NULL;
 #define CONNMARK_NOT_HTTP 43
 #define CONNMARK_HTTP 44
 
+bool use_conntrack = true;
+static bool cache_initialized = false;
+
 void init_handler() {
     replacement_user_agent_string = malloc(MAX_USER_AGENT_LENGTH);
 
@@ -39,13 +42,20 @@ void init_handler() {
         syslog(LOG_INFO, "Using config user agent string: %s", replacement_user_agent_string);
         ua_set = true;
     }
+
+    if (config.disable_connmark) {
+        use_conntrack = false;
+        syslog(LOG_INFO, "Conntrack cache disabled by config.");
+    }
 #endif
 
 #ifdef UA2F_CUSTOM_UA
-    memset(replacement_user_agent_string, ' ', MAX_USER_AGENT_LENGTH);
-    strncpy(replacement_user_agent_string, UA2F_CUSTOM_UA, strlen(UA2F_CUSTOM_UA));
-    syslog(LOG_INFO, "Using embed user agent string: %s", replacement_user_agent_string);
-    ua_set = true;
+    if (!ua_set) {
+        memset(replacement_user_agent_string, ' ', MAX_USER_AGENT_LENGTH);
+        strncpy(replacement_user_agent_string, UA2F_CUSTOM_UA, strlen(UA2F_CUSTOM_UA));
+        syslog(LOG_INFO, "Using embed user agent string: %s", replacement_user_agent_string);
+        ua_set = true;
+    }
 #endif
 
     if (!ua_set) {
@@ -98,9 +108,6 @@ end:
     }
 }
 
-bool conntrack_info_available = true;
-static bool cache_initialized = false;
-
 static void add_to_cache(const struct nf_packet *pkt) {
     struct addr_port target = {
         .addr = pkt->orig.dst,
@@ -111,7 +118,7 @@ static void add_to_cache(const struct nf_packet *pkt) {
 }
 
 static struct mark_op get_next_mark(const struct nf_packet *pkt, const bool has_ua) {
-    if (!conntrack_info_available) {
+    if (!use_conntrack) {
         return (struct mark_op){false, 0};
     }
 
@@ -160,9 +167,9 @@ bool should_ignore(const struct nf_packet *pkt) {
 }
 
 void handle_packet(const struct nf_queue *queue, const struct nf_packet *pkt) {
-    if (conntrack_info_available) {
+    if (use_conntrack) {
         if (!pkt->has_conntrack) {
-            conntrack_info_available = false;
+            use_conntrack = false;
             syslog(LOG_WARNING, "Packet has no conntrack. Switching to no cache mode.");
             syslog(LOG_WARNING, "Note that this may lead to performance degradation. Especially on low-end routers.");
         } else {
@@ -173,19 +180,17 @@ void handle_packet(const struct nf_queue *queue, const struct nf_packet *pkt) {
         }
     }
 
-    struct pkt_buff *pkt_buff = NULL;
-    if (conntrack_info_available && should_ignore(pkt)) {
+    if (use_conntrack && should_ignore(pkt)) {
         send_verdict(queue, pkt, (struct mark_op){true, CONNMARK_NOT_HTTP}, NULL);
         goto end;
     }
 
-    pkt_buff = pktb_alloc(AF_INET, pkt->payload, pkt->payload_len, 0);
-
+    struct pkt_buff *pkt_buff = pktb_alloc(AF_INET, pkt->payload, pkt->payload_len, 0);
     ASSERT(pkt_buff != NULL);
 
     int type;
 
-    if (conntrack_info_available) {
+    if (use_conntrack) {
         type = pkt->orig.ip_version;
     } else {
         const __auto_type ip_hdr = nfq_ip_get_hdr(pkt_buff);
@@ -282,7 +287,7 @@ void handle_packet(const struct nf_queue *queue, const struct nf_packet *pkt) {
         const unsigned int ua_len = ua_end - ua_start;
         const unsigned long ua_offset = ua_start - tcp_payload;
 
-        // Looks it's impossible to mangle pocket failed, so we just drop it
+        // Looks it's impossible to mangle packet failed, so we just drop it
         if (type == IPV4) {
             nfq_tcp_mangle_ipv4(pkt_buff, ua_offset, ua_len, replacement_user_agent_string, ua_len);
         } else {

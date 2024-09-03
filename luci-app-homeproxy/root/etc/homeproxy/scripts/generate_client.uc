@@ -51,7 +51,7 @@ const dns_port = uci.get(uciconfig, uciinfra, 'dns_port') || '5333';
 
 let main_node, main_udp_node, dedicated_udp_node, default_outbound, sniff_override = '1',
     dns_server, dns_default_strategy, dns_default_server, dns_disable_cache, dns_disable_cache_expire,
-    dns_independent_cache, dns_client_subnet, direct_domain_list;
+    dns_independent_cache, dns_client_subnet, direct_domain_list, proxy_domain_list;
 
 if (routing_mode !== 'custom') {
 	main_node = uci.get(uciconfig, ucimain, 'main_node') || 'nil';
@@ -65,6 +65,10 @@ if (routing_mode !== 'custom') {
 	direct_domain_list = trim(readfile(HP_DIR + '/resources/direct_list.txt'));
 	if (direct_domain_list)
 		direct_domain_list = split(direct_domain_list, /[\r\n]/);
+
+	proxy_domain_list = trim(readfile(HP_DIR + '/resources/proxy_list.txt'));
+	if (proxy_domain_list)
+		proxy_domain_list = split(proxy_domain_list, /[\r\n]/);
 } else {
 	/* DNS settings */
 	dns_default_strategy = uci.get(uciconfig, ucidnssetting, 'default_strategy');
@@ -89,7 +93,10 @@ const cache_file_store_rdrc = uci.get(uciconfig, uciexp, 'cache_file_store_rdrc'
 const mixed_port = uci.get(uciconfig, uciinfra, 'mixed_port') || '5330';
 let self_mark, redirect_port, tproxy_port,
     tun_name, tun_addr4, tun_addr6, tun_mtu, tun_gso,
-    tcpip_stack, endpoint_independent_nat;
+    tcpip_stack, endpoint_independent_nat, udp_timeout;
+udp_timeout = uci.get(uciconfig, 'infra', 'udp_timeout');
+if (routing_mode === 'custom')
+	udp_timeout = uci.get(uciconfig, uciroutingsetting, 'udp_timeout');
 if (match(proxy_mode, /redirect/)) {
 	self_mark = uci.get(uciconfig, 'infra', 'self_mark') || '100';
 	redirect_port = uci.get(uciconfig, 'infra', 'redirect_port') || '5331';
@@ -102,7 +109,7 @@ if (match(proxy_mode), /tun/) {
 	tun_addr4 = uci.get(uciconfig, uciinfra, 'tun_addr4') || '172.19.0.1/30';
 	tun_addr6 = uci.get(uciconfig, uciinfra, 'tun_addr6') || 'fdfe:dcba:9876::1/126';
 	tun_mtu = uci.get(uciconfig, uciinfra, 'tun_mtu') || '9000';
-	tun_gso = '0';
+	tun_gso = uci.get(uciconfig, uciinfra, 'tun_gso') || '0';
 	tcpip_stack = 'system';
 	if (routing_mode === 'custom') {
 		tun_gso = uci.get(uciconfig, uciroutingsetting, 'tun_gso') || '0';
@@ -156,6 +163,7 @@ function generate_outbound(node) {
 		/* Direct */
 		override_address: node.override_address,
 		override_port: strToInt(node.override_port),
+		proxy_protocol: strToInt(node.proxy_protocol),
 		/* Hysteria (2) */
 		up_mbps: strToInt(node.hysteria_up_mbps),
 		down_mbps: strToInt(node.hysteria_down_mbps),
@@ -377,6 +385,14 @@ if (!isEmpty(main_node)) {
 			server: 'default-dns'
 		});
 
+	/* Filter out SVCB/HTTPS queries for "exquisite" Apple devices */
+	if (routing_mode === 'gfwlist' || proxy_domain_list)
+		push(config.dns.rules, {
+			domain_keyword: (routing_mode !== 'gfwlist') ? proxy_domain_list : null,
+			query_type: [64, 65],
+			server: 'block-dns'
+		});
+
 	if (isEmpty(config.dns.rules))
 		config.dns.rules = null;
 
@@ -470,6 +486,7 @@ push(config.inbounds, {
 	tag: 'mixed-in',
 	listen: '::',
 	listen_port: int(mixed_port),
+	udp_timeout: udp_timeout ? (udp_timeout + 's') : null,
 	sniff: true,
 	sniff_override_destination: (sniff_override === '1'),
 	set_system_proxy: false
@@ -493,6 +510,7 @@ if (match(proxy_mode, /tproxy/))
 		listen: '::',
 		listen_port: int(tproxy_port),
 		network: 'udp',
+		udp_timeout: udp_timeout ? (udp_timeout + 's') : null,
 		sniff: true,
 		sniff_override_destination: (sniff_override === '1')
 	});
@@ -508,6 +526,7 @@ if (match(proxy_mode, /tun/))
 		gso: (tun_gso === '1'),
 		auto_route: false,
 		endpoint_independent_nat: strToBool(endpoint_independent_nat),
+		udp_timeout: udp_timeout ? (udp_timeout + 's') : null,
 		stack: tcpip_stack,
 		sniff: true,
 		sniff_override_destination: (sniff_override === '1'),
