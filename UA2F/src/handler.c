@@ -27,7 +27,12 @@ static char *replacement_user_agent_string = NULL;
 #define CONNMARK_NOT_HTTP 43
 #define CONNMARK_HTTP 44
 
+#ifndef UA2F_NO_CACHE
 bool use_conntrack = true;
+#else
+bool use_conntrack = false;
+#endif
+
 static bool cache_initialized = false;
 
 void init_handler() {
@@ -189,7 +194,6 @@ void handle_packet(const struct nf_queue *queue, const struct nf_packet *pkt) {
     ASSERT(pkt_buff != NULL);
 
     int type;
-
     if (use_conntrack) {
         type = pkt->orig.ip_version;
     } else {
@@ -306,9 +310,7 @@ void handle_packet(const struct nf_queue *queue, const struct nf_packet *pkt) {
 
 end:
     free(pkt->payload);
-    if (pkt_buff != NULL) {
-        pktb_free(pkt_buff);
-    }
+    pktb_free(pkt_buff);
 
     try_print_statistics();
 }
