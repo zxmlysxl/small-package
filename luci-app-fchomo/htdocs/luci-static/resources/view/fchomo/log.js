@@ -42,13 +42,13 @@ function getRuntimeLog(name, filename) {
 	let log;
 	poll.add(L.bind(function() {
 		return fs.read_direct(String.format('%s/%s.log', hm_dir, filename), 'text')
-		.then(function(res) {
+		.then((res) => {
 			log = E('pre', { 'wrap': 'pre' }, [
 				res.trim() || _('Log is empty.')
 			]);
 
 			dom.content(log_textarea, log);
-		}).catch(function(err) {
+		}).catch((err) => {
 			if (err.toString().includes('NotFoundError'))
 				log = E('pre', { 'wrap': 'pre' }, [
 					_('Log file does not exist.')
@@ -93,14 +93,14 @@ return view.extend({
 
 		s = m.section(form.NamedSection, 'config', 'fchomo');
 
-		/* FullCombo Mihomo START */
-		s.tab('fchomo', _('FullCombo Mihomo'));
+		/* FullCombo Shark! START */
+		s.tab('fchomo', _('FullCombo Shark!'));
 		o = s.taboption('fchomo', form.SectionValue, '_fchomo', form.NamedSection, 'config', null);
 		ss = o.subsection;
 
 		so = ss.option(form.DummyValue, '_fchomo_logview');
-		so.render = L.bind(getRuntimeLog, so, _('FullCombo Mihomo'), 'fchomo');
-		/* FullCombo Mihomo END */
+		so.render = L.bind(getRuntimeLog, so, _('FullCombo Shark!'), 'fchomo');
+		/* FullCombo Shark! END */
 
 		/* Mihomo client START */
 		s.tab('mihomo_c', _('Mihomo client'));

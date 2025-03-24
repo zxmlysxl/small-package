@@ -35,7 +35,7 @@ function is_js_luci()
 end
 
 function is_old_uci()
-	return sys.call("grep 'require \"uci\"' /usr/lib/lua/luci/model/uci.lua >/dev/null 2>&1") == 0
+	return sys.call("grep -E 'require[ \t]*\"uci\"' /usr/lib/lua/luci/model/uci.lua >/dev/null 2>&1") == 0
 end
 
 function set_apply_on_parse(map)
@@ -55,6 +55,16 @@ function showMsg_Redirect(redirectUrl, delay)
 	luci.http.write([[
 		<script type="text/javascript">
 			document.addEventListener('DOMContentLoaded', function() {
+				// 创建遮罩层
+				var overlay = document.createElement('div');
+				overlay.style.position = 'fixed';
+				overlay.style.top = '0';
+				overlay.style.left = '0';
+				overlay.style.width = '100%';
+				overlay.style.height = '100%';
+				overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+				overlay.style.zIndex = '9999';
+				// 创建提示条
 				var messageDiv = document.createElement('div');
 				messageDiv.style.position = 'fixed';
 				messageDiv.style.top = '0';
@@ -66,7 +76,10 @@ function showMsg_Redirect(redirectUrl, delay)
 				messageDiv.style.padding = '10px';
 				messageDiv.style.zIndex = '10000';
 				messageDiv.textContent = ']] .. message .. [[';
+				// 将遮罩层和提示条添加到页面
+				document.body.appendChild(overlay);
 				document.body.appendChild(messageDiv);
+				// 重定向或隐藏提示条和遮罩层
 				var redirectUrl = ']] .. (redirectUrl or "") .. [[';
 				var delay = ]] .. (delay or 3000) .. [[;
 				setTimeout(function() {
@@ -76,6 +89,10 @@ function showMsg_Redirect(redirectUrl, delay)
 						if (messageDiv && messageDiv.parentNode) {
 							messageDiv.parentNode.removeChild(messageDiv);
 						}
+						if (overlay && overlay.parentNode) {
+							overlay.parentNode.removeChild(overlay);
+						}
+						window.location.href = window.location.href;
 					}
 				}, delay);
 			});
@@ -367,7 +384,7 @@ function strToTable(str)
 end
 
 function is_normal_node(e)
-	if e and e.type and e.protocol and (e.protocol == "_balancing" or e.protocol == "_shunt" or e.protocol == "_iface") then
+	if e and e.type and e.protocol and (e.protocol == "_balancing" or e.protocol == "_shunt" or e.protocol == "_iface" or e.protocol == "_urltest") then
 		return false
 	end
 	return true
@@ -477,7 +494,7 @@ function get_valid_nodes()
 	uci:foreach(appname, "nodes", function(e)
 		e.id = e[".name"]
 		if e.type and e.remarks then
-			if e.protocol and (e.protocol == "_balancing" or e.protocol == "_shunt" or e.protocol == "_iface") then
+			if e.protocol and (e.protocol == "_balancing" or e.protocol == "_shunt" or e.protocol == "_iface" or e.protocol == "_urltest") then
 				local type = e.type
 				if type == "sing-box" then type = "Sing-Box" end
 				e["remark"] = "%s：[%s] " % {type .. " " .. i18n.translatef(e.protocol), e.remarks}
@@ -527,7 +544,7 @@ end
 function get_node_remarks(n)
 	local remarks = ""
 	if n then
-		if n.protocol and (n.protocol == "_balancing" or n.protocol == "_shunt" or n.protocol == "_iface") then
+		if n.protocol and (n.protocol == "_balancing" or n.protocol == "_shunt" or n.protocol == "_iface" or n.protocol == "_urltest") then
 			remarks = "%s：[%s] " % {n.type .. " " .. i18n.translatef(n.protocol), n.remarks}
 		else
 			local type2 = n.type
@@ -1145,7 +1162,7 @@ end
 function get_version()
 	local version = sys.exec("opkg list-installed luci-app-passwall 2>/dev/null | awk '{print $3}'")
 	if not version or #version == 0 then
-		version = sys.exec("apk info -L luci-app-passwall 2>/dev/null | awk 'NR == 1 {print $1}' | cut -d'-' -f4-")
+		version = sys.exec("apk list luci-app-passwall 2>/dev/null | awk '/installed/ {print $1}' | cut -d'-' -f4-")
 	end
 	return version or ""
 end

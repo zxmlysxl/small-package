@@ -3,41 +3,20 @@
 'use strict';
 
 import { access, lsdir, lstat, popen, readfile, writefile } from 'fs';
-
-/* Kanged from ucode/luci */
-function shellquote(s) {
-	return `'${replace(s, "'", "'\\''")}'`;
-}
-
-function isBinary(str) {
-	for (let off = 0, byte = ord(str); off < length(str); byte = ord(str, ++off))
-		if (byte <= 8 || (byte >= 14 && byte <= 31))
-			return true;
-
-	return false;
-}
+import {
+	shellQuote, isBinary, yqRead, yqReadFile,
+	HM_DIR, EXE_DIR, SDL_DIR, RUN_DIR
+} from 'fchomo';
 
 function hasKernelModule(kmod) {
-	return (system(sprintf('[ -e "/lib/modules/$(uname -r)"/%s ]', shellquote(kmod))) === 0);
-}
-
-function yqRead(flags, command, filepath) {
-	let out = '';
-
-	const fd = popen(`yq ${flags} ${shellquote(command)} ${filepath}`);
-	if (fd) {
-		out = fd.read('all');
-		fd.close();
-	}
-
-	return out;
+	return (system(sprintf('[ -e "/lib/modules/$(uname -r)"/%s ]', shellQuote(kmod))) === 0);
 }
 
 function wGET(url, header, filepath) {
 	if (!url || type(url) !== 'string')
 		return null;
 
-	let ua = 'Wget/1.21 (FullCombo Mihomo)';
+	let ua = 'Wget/1.21 (FullCombo Shark!)';
 
 	if (header) {
 		header = json(trim(header) || {});
@@ -48,21 +27,50 @@ function wGET(url, header, filepath) {
 				ua = v;
 				v = null;
 			}
-			return v ? '--header=' + shellquote(`${k}: ${v}`) : null;
+			return v ? '--header=' + shellQuote(`${k}: ${v}`) : null;
 		}), v => v));
 	} else
 		header = '';
 
-	let exitcode = system(`wget --tries=1 --timeout=10 --user-agent ${shellquote(ua)} ${header} -q ${shellquote(url)} -O ${shellquote(filepath)}`);
+	let exitcode = system(`wget --tries=1 --timeout=10 --user-agent ${shellQuote(ua)} ${header} -q ${shellQuote(url)} -O ${shellQuote(filepath)}`);
 
 	return exitcode;
 }
 
-const HM_DIR = '/etc/fchomo';
-const RUN_DIR = '/var/run/fchomo';
 const RES_TYPE = ['certs', 'provider', 'ruleset', 'resources', 'templates'];
 
 const methods = {
+	mihomo_generator: {
+		args: { type: 'type' },
+		call: function(req) {
+			if (!(req.args?.type in ['uuid', 'reality-keypair', 'wg-keypair']))
+				return { result: false, error: 'illegal type' };
+
+			const type = req.args?.type;
+			let result = {};
+
+			const fd = popen('/usr/bin/mihomo generate ' + type);
+			if (fd) {
+				for (let line = fd.read('line'); length(line); line = fd.read('line')) {
+					if (type === 'uuid')
+						result.uuid = trim(line);
+					else if (type in ['reality-keypair', 'wg-keypair']) {
+						let priv = match(trim(line), /PrivateKey: (.*)/);
+						if (priv)
+							result.private_key = priv[1];
+						let pub = match(trim(line), /PublicKey: (.*)/);
+						if (pub)
+							result.public_key = pub[1];
+					}
+				}
+
+				fd.close();
+			}
+
+			return { result };
+		}
+	},
+
 	get_features: {
 		call: function() {
 			let features = {};
@@ -84,20 +92,15 @@ const methods = {
 				fd.close();
 			}
 
-			const fp = popen(`${use_apk ? 'apk list -I' : 'opkg list-installed'} luci-app-fchomo | ` +
-				`awk '{print $${use_apk ? '1' : 'NF'}}'`);
-			if (fp) {
-				features.luciapp_version = trim(fp.read('line')) || null;
+			features.app_version = trim(popen(`${use_apk ? 'apk list -I' : 'opkg list-installed'} luci-app-fchomo | ` +
+				`awk '{print $${use_apk ? '1' : 'NF'}}'`).read('all')) || null;
 
-				fp.close();
-			}
-
-			features.hm_has_dnsmasq_full = system(`[ -n "$(${use_apk ? 'apk list -qI' : 'opkg list-installed'} dnsmasq-full)" ]`) == 0 || null;
-			features.hm_has_ip_full = access('/usr/libexec/ip-full');
-			features.hm_has_stunclient = access('/usr/bin/stunclient');
-			features.hm_has_tcp_brutal = hasKernelModule('brutal.ko');
-			features.hm_has_tproxy = hasKernelModule('nft_tproxy.ko') || access('/etc/modules.d/nft-tproxy');
-			features.hm_has_tun = hasKernelModule('tun.ko') || access('/etc/modules.d/30-tun');
+			features.has_dnsmasq_full = system(`[ -n "$(${use_apk ? 'apk list -qI' : 'opkg list-installed'} dnsmasq-full)" ]`) == 0 || null;
+			features.has_ip_full = access('/usr/libexec/ip-full');
+			features.has_stunclient = access('/usr/bin/stunclient');
+			features.has_tcp_brutal = hasKernelModule('brutal.ko');
+			features.has_tproxy = hasKernelModule('nft_tproxy.ko') || access('/etc/modules.d/nft-tproxy');
+			features.has_tun = hasKernelModule('tun.ko') || access('/etc/modules.d/30-tun');
 
 			return features;
 		}
@@ -109,7 +112,7 @@ const methods = {
 			if (req.args?.instance) {
 				const instance = req.args?.instance;
 
-				let config = json(trim(yqRead('-oj', '.[] |= with(select(type == "!!map"); del(.)) |= with(select(type == "!!seq"); del(.))', `${RUN_DIR}/${instance}.yaml`)) || '{}');
+				let config = json(trim(yqReadFile('-oj', '.[] |= with(select(type == "!!map"); del(.)) |= with(select(type == "!!seq"); del(.))', `${RUN_DIR}/${instance}.yaml`)) || '{}');
 
 				return {
 					http: config['external-controller'],
@@ -128,13 +131,7 @@ const methods = {
 			if (!req.args?.url)
 				return { httpcode: null, error: 'illegal url' };
 
-			let httpcode = '-1';
-			const fd = popen("wget --spider -t1 -ST3 '" + req.args?.url + "' 2>&1 | awk '/^\\s*HTTP\\//{print $2}'");
-			if (fd) {
-				httpcode = trim(fd.read('line')) || httpcode;
-
-				fd.close();
-			}
+			const httpcode = trim(popen(`wget --spider -t1 -ST3 '${req.args?.url}' 2>&1 | awk '/^\\s*HTTP\\//{print $2}'`).read('all')) || '-1';
 
 			return { httpcode: httpcode };
 		}
@@ -144,9 +141,9 @@ const methods = {
 		args: { type: 'type', expr: 'expr' },
 		call: function(req) {
 			if (req.args?.type == 'resources') {
-				system(`sed -i "/${replace(HM_DIR, "/", "\\/")}\\/scripts\\/update_resources.sh/d" /etc/crontabs/root`);
+				system(`sed -i "/${replace(EXE_DIR, "/", "\\/")}\\/update_resources.sh/d" /etc/crontabs/root`);
 				if (req.args?.expr)
-					system(`echo -e "` + req.args?.expr + ` ${HM_DIR}/scripts/update_resources.sh ALL" >> /etc/crontabs/root`);
+					system(`echo -e "` + req.args?.expr + ` ${EXE_DIR}/update_resources.sh ALL" >> /etc/crontabs/root`);
 			} else
 				return { result: false, error: 'illegal type' };
 
@@ -188,12 +185,32 @@ const methods = {
 		args: { type: 'type', repo: 'repo' },
 		call: function(req) {
 			if (req.args?.type) {
-				const type = shellquote(req.args?.type),
-				      repo = shellquote(req.args?.repo);
-				const exit_code = system(`${HM_DIR}/scripts/update_resources.sh ${type} ${repo}`);
+				const type = shellQuote(req.args?.type),
+				      repo = shellQuote(req.args?.repo);
+				const exit_code = system(`${EXE_DIR}/update_resources.sh ${type} ${repo}`);
 				return { status: exit_code };
 			} else
 				return { status: 255, error: 'illegal type' };
+		}
+	},
+
+	json2yaml: {
+		args: { content: 'content', command: 'command' },
+		call: function(req) {
+			if (!req.args?.content)
+				return { result: ''};
+
+			return { result: trim(yqRead('-oy', req.args?.command ? req.args?.command + ' | ... style=""' : '... style=""', req.args?.content)) || '' };
+		}
+	},
+
+	yaml2json: {
+		args: { content: 'content', command: 'command' },
+		call: function(req) {
+			if (!req.args?.content)
+				return { result: {}};
+
+			return { result: json(trim(yqRead('-oj', req.args?.command || '.', req.args?.content)) || '{}') };
 		}
 	},
 

@@ -96,7 +96,7 @@ function check_port()
 	local retstring = "<br /><br />"
 	local s
 	local server_name = ""
-	local uci = luci.model.uci.cursor()
+	local uci = require "luci.model.uci".cursor()
 	local iret = 1
 	uci:foreach("shadowsocksr", "servers", function(s)
 		if s.alias then
@@ -151,7 +151,7 @@ function create_backup()
 		"/etc/config/shadowsocksr",
 		"/etc/ssrplus/*"
 	}
-	local date = os.date("%Y%m%d")
+	local date = os.date("%Y-%m-%d-%H-%M-%S")
 	local tar_file = "/tmp/shadowsocksr-" .. date .. "-backup.tar.gz"
 	nixio.fs.remove(tar_file)
 	local cmd = "tar -czf " .. tar_file .. " " .. table.concat(backup_files, " ")

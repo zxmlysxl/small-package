@@ -1,19 +1,19 @@
 <?php
 ob_start();
 include './cfg.php';
-date_default_timezone_set('Asia/Shanghai');
 
 $dataFilePath = '/etc/neko/proxy_provider/subscription_data.txt';
 $lastSubscribeUrl = '';
 
 if (file_exists($dataFilePath)) {
     $fileContent = file_get_contents($dataFilePath);
-    $lastPos = strrpos($fileContent, '订阅链接地址:');
+    $subscriptionLinkAddress = $translations['subscription_link_address'] ?? 'Subscription Link Address:';
+    $lastPos = strrpos($fileContent, $subscriptionLinkAddress);
     if ($lastPos !== false) {
         $urlSection = substr($fileContent, $lastPos);
         $httpPos = strpos($urlSection, 'http');
         if ($httpPos !== false) {
-            $endPos = strpos($urlSection, '自定义模板URL:', $httpPos);
+            $endPos = strpos($urlSection, 'Custom Template URL:', $httpPos);
             if ($endPos !== false) {
                 $lastSubscribeUrl = trim(substr($urlSection, $httpPos, $endPos - $httpPos));
             } else {
@@ -45,12 +45,43 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['setCron'])) {
         unlink($tempCronFile);
 
         $timestamp = date('[ H:i:s ]');
-        file_put_contents($logFile, "$timestamp 定时任务已设置成功，Sing-box 将在 $cronExpression 自动更新。\n", FILE_APPEND);
-        echo "<div class='alert alert-success'>定时任务已设置: $cronExpression</div>";
+        file_put_contents($logFile, "$timestamp Cron job successfully set. Sing-box will update at $cronExpression.\n", FILE_APPEND);
+        echo "<div id='log-message' class='alert alert-success' data-translate='cron_job_set' data-dynamic-content='$cronExpression'></div>";
     } else {
         $timestamp = date('[ H:i:s ]');
-        file_put_contents($logFile, "$timestamp 无效的 Cron 表达式: $cronExpression\n", FILE_APPEND);
-        echo "<div class='alert alert-danger'>无效的 Cron 表达式，请检查格式。</div>";
+        file_put_contents($logFile, "$timestamp Invalid Cron expression: $cronExpression\n", FILE_APPEND);
+        echo "<div id='log-message' class='alert alert-danger' data-translate='cron_job_added_failed'></div>";
+    }
+}
+?>
+
+<?php
+$subscriptionFilePath = '/etc/neko/proxy_provider/subscription_data.txt';
+
+if (file_exists($subscriptionFilePath)) {
+    $fileContent = file_get_contents($subscriptionFilePath);
+    $fileContent = trim($fileContent); 
+} else {
+    $fileContent = ''; 
+}
+
+$latestLink = '';
+if (!empty($fileContent)) {
+    $lines = explode("\n", $fileContent);
+
+    $latestTimestamp = '';
+    $latestLink = '';
+
+    foreach ($lines as $line) {
+        if (preg_match('/^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) \| .*: (.*)$/', $line, $matches)) {
+            $timestamp = $matches[1]; 
+            $links = $matches[2]; 
+
+            if ($timestamp > $latestTimestamp) {
+                $latestTimestamp = $timestamp;
+                $latestLink = $links;
+            }
+        }
     }
 }
 ?>
@@ -64,11 +95,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $SUBSCRIBE_URL = trim($_POST['subscribeUrl']);
         
         if (empty($SUBSCRIBE_URL)) {
-            echo "<div class='alert alert-warning'>订阅链接不能为空。</div>";
+            echo "<div class='alert alert-warning' data-translate='subscribe_url_empty'></div>";
             exit;
         }
         
-        echo "<div class='alert alert-success'>提交成功: 订阅链接已保存为 $SUBSCRIBE_URL</div>";
+        echo '<div id="log-message" class="alert alert-success" data-translate="subscribe_url_saved" data-dynamic-content="' . $SUBSCRIBE_URL . '"></div>';
     }
 
     if (isset($_POST['createShellScript'])) {
@@ -79,17 +110,17 @@ LOG_FILE="$LOG_FILE"
 SUBSCRIBE_URL=\$(cat /etc/neko/proxy_provider/subscription.txt | tr -d '\\n\\r')
 
 if [ -z "\$SUBSCRIBE_URL" ]; then
-  echo "\$(date '+[ %H:%M:%S ]') 订阅链接地址为空或提取失败。" >> "\$LOG_FILE"
+  echo "\$(date '+[ %H:%M:%S ]') Subscription URL is empty or extraction failed." >> "\$LOG_FILE"
   exit 1
 fi
 
-echo "\$(date '+[ %H:%M:%S ]') 使用的订阅链接: \$SUBSCRIBE_URL" >> "\$LOG_FILE"
+echo "\$(date '+[ %H:%M:%S ]') Using subscription URL: \$SUBSCRIBE_URL" >> "\$LOG_FILE"
 
 CONFIG_DIR="/etc/neko/config"
 if [ ! -d "\$CONFIG_DIR" ]; then
   mkdir -p "\$CONFIG_DIR"
   if [ \$? -ne 0 ]; then
-    echo "\$(date '+[ %H:%M:%S ]') 无法创建配置目录: \$CONFIG_DIR" >> "\$LOG_FILE"
+    echo "\$(date '+[ %H:%M:%S ]') Failed to create config directory: \$CONFIG_DIR" >> "\$LOG_FILE"
     exit 1
   fi
 fi
@@ -98,27 +129,27 @@ CONFIG_FILE="\$CONFIG_DIR/sing-box.json"
 wget -q -O "\$CONFIG_FILE" "\$SUBSCRIBE_URL" >/dev/null 2>&1
 
 if [ \$? -eq 0 ]; then
-  echo "\$(date '+[ %H:%M:%S ]') Sing-box 配置文件更新成功，保存路径: \$CONFIG_FILE" >> "\$LOG_FILE"
+  echo "\$(date '+[ %H:%M:%S ]') Sing-box configuration file updated successfully. Saved to: \$CONFIG_FILE" >> "\$LOG_FILE"
 
   sed -i 's/"Proxy"/"DIRECT"/g' "\$CONFIG_FILE"
 
   if [ \$? -eq 0 ]; then
-    echo "\$(date '+[ %H:%M:%S ]') 配置文件中的 Proxy 已成功替换为 DIRECT。" >> "\$LOG_FILE"
+    echo "\$(date '+[ %H:%M:%S ]') Successfully replaced 'Proxy' with 'DIRECT' in the configuration file." >> "\$LOG_FILE"
   else
-    echo "\$(date '+[ %H:%M:%S ]') 替换 Proxy 为 DIRECT 失败，请检查配置文件。" >> "\$LOG_FILE"
+    echo "\$(date '+[ %H:%M:%S ]') Failed to replace 'Proxy' with 'DIRECT'. Please check the configuration file." >> "\$LOG_FILE"
     exit 1
   fi
 else
-  echo "\$(date '+[ %H:%M:%S ]') 配置文件更新失败，请检查链接或网络。" >> "\$LOG_FILE"
+  echo "\$(date '+[ %H:%M:%S ]') Configuration file update failed. Please check the URL or network." >> "\$LOG_FILE"
   exit 1
 fi
 EOL;
 
         if (file_put_contents($shellScriptPath, $shellScriptContent) !== false) {
             chmod($shellScriptPath, 0755);
-            echo "<div class='alert alert-success'>Shell 脚本已创建成功！路径: $shellScriptPath</div>";
+            echo "<div id='log-message' class='alert alert-success' data-translate='shell_script_created' data-dynamic-content='$shellScriptPath'></div>";
         } else {
-            echo "<div class='alert alert-danger'>无法创建 Shell 脚本，请检查权限。</div>";
+            echo "<div id='log-message' class='alert alert-danger' data-translate='shell_script_failed'></div>";
         }
     }
 }
@@ -144,6 +175,22 @@ EOL;
 </head>
 <body>
 <style>
+.container-fluid {
+    max-width: 2400px;
+    width: 100%;
+    margin: 0 auto;
+}
+
+.section-container {
+   padding-left: 32px;  
+   padding-right: 32px;
+}
+
+.container {
+   padding-left: 40px;  
+   padding-right: 40px;
+}
+
 @media (max-width: 767px) {
     .row a {
         font-size: 9px; 
@@ -157,120 +204,118 @@ EOL;
 </style>
 <div class="container-sm container-bg callout border border-3 rounded-4 col-11">
     <div class="row">
-        <a href="./index.php" class="col btn btn-lg"><i class="bi bi-house-door"></i> 首页</a>
-        <a href="./mihomo_manager.php" class="col btn btn-lg"><i class="bi bi-folder"></i> 文件管理</a>
-        <a href="./singbox.php" class="col btn btn-lg"><i class="bi bi-shop"></i> 模板 一</a>
-        <a href="./subscription.php" class="col btn btn-lg"><i class="bi bi-bank"></i>  模板 二</a>
-        <a href="./mihomo.php" class="col btn btn-lg"><i class="bi bi-building"></i> 模板 三</a>
-<div class="outer-container">
-    <div class="container" style="padding-left: 2.4em; padding-right: 2.4em;">
-        <h1 class="title text-center" style="margin-top: 3rem; margin-bottom: 2rem;">Sing-box 订阅转换模板 一</h1>
+        <a href="./index.php" class="col btn btn-lg text-nowrap"><i class="bi bi-house-door"></i> <span data-translate="home">Home</span></a>
+        <a href="./mihomo_manager.php" class="col btn btn-lg text-nowrap"><i class="bi bi-folder"></i> <span data-translate="manager">Manager</span></a>
+        <a href="./singbox.php" class="col btn btn-lg text-nowrap"><i class="bi bi-shop"></i> <span data-translate="template_i">Template I</span></a>
+        <a href="./subscription.php" class="col btn btn-lg text-nowrap"><i class="bi bi-bank"></i> <span data-translate="template_ii">Template II</span></a>
+        <a href="./mihomo.php" class="col btn btn-lg text-nowrap"><i class="bi bi-building"></i> <span data-translate="template_iii">Template III</span></a>
+<div class="outer-container section-container">
+    <div class="container-fluid">
+        <h1 class="title text-center" style="margin-top: 3rem; margin-bottom: 2rem;" data-translate="title">Sing-box Conversion Template One</h1>
         <div class="alert alert-info">
-            <h4 class="alert-heading">帮助信息</h4>
+            <h4 class="alert-heading" data-translate="helpInfoHeading">Help Information</h4>
             <ul>
-                <li><strong>模板 1</strong>：无地区  无分组 。</li>
-                <li><strong>模板 2</strong>：无地区  带分流规则 。</li>
-                <li><strong>模板 3</strong>：香港 台湾 新加坡 日本 美国 韩国 分组 带分流规则。</li>
-                <li><strong>模板 4</strong>：同上多规则。</li>
+                <li data-translate="template1"><strong>Template 1</strong>: No Region, No Groups.</li>
+                <li data-translate="template2"><strong>Template 2</strong>: No Region, With Routing Rules.</li>
+                <li data-translate="template3"><strong>Template 3</strong>: Hong Kong, Taiwan, Singapore, Japan, USA, South Korea, With Routing Rules.</li>
+                <li data-translate="template4"><strong>Template 4</strong>: Same As Above, Multiple Rules.</li>
             </ul>
         </div>
         <form method="post" action="">
             <div class="mb-3">
-                <label for="subscribeUrl" class="form-label">订阅链接地址</label>
-                <input type="text" class="form-control" id="subscribeUrl" name="subscribeUrl" value="<?php echo htmlspecialchars($lastSubscribeUrl); ?>" placeholder="输入订阅链接，多个链接用 | 分隔" required>
+                <label for="subscribeUrl" class="form-label" data-translate="subscribeUrlLabel">Subscription URL</label>         
+                <input type="text" class="form-control" id="subscribeUrl" name="subscribeUrl" value="<?php echo htmlspecialchars($links); ?>" placeholder="Enter subscription URL, multiple URLs separated by |"  data-translate-placeholder="subscribeUrlPlaceholder" required>
             </div>
             <div class="mb-3">
-                <label for="customFileName" class="form-label">自定义文件名（默认:sing-box.json）</label>
+                <label for="customFileName" class="form-label" data-translate="customFileNameLabel">Custom Filename (Default: sing-box.json)</label>
                 <input type="text" class="form-control" id="customFileName" name="customFileName" placeholder="sing-box.json">
             </div>
             <fieldset class="mb-3">
-                <legend class="form-label">选择模板</legend>
+                <legend class="form-label" data-translate="chooseTemplateLabel">Choose Template</legend>
                 <div class="row">
                     <div class="col">
                         <input type="radio" class="form-check-input" id="useDefaultTemplate0" name="defaultTemplate" value="0" checked>
-                        <label class="form-check-label" for="useDefaultTemplate0">默认模板</label>
+                        <label class="form-check-label" for="useDefaultTemplate0" data-translate="defaultTemplateLabel">Default Template</label>
                     </div>
                     <div class="col">
-                        <input type="radio" class="form-check-input" id="useDefaultTemplate1" name="defaultTemplate" value="1" checked>
-                        <label class="form-check-label" for="useDefaultTemplate1">模板 1</label>
+                        <input type="radio" class="form-check-input" id="useDefaultTemplate1" name="defaultTemplate" value="1">
+                        <label class="form-check-label" for="useDefaultTemplate1" data-translate="template1Label">Template 1</label>
                     </div>
                     <div class="col">
                         <input type="radio" class="form-check-input" id="useDefaultTemplate2" name="defaultTemplate" value="2">
-                        <label class="form-check-label" for="useDefaultTemplate2">模板 2</label>
+                        <label class="form-check-label" for="useDefaultTemplate2" data-translate="template2Label">Template 2</label>
                     </div>
                     <div class="col">
                         <input type="radio" class="form-check-input" id="useDefaultTemplate3" name="defaultTemplate" value="3">
-                        <label class="form-check-label" for="useDefaultTemplate3">模板 3</label>
+                        <label class="form-check-label" for="useDefaultTemplate3" data-translate="template3Label">Template 3</label>
                     </div>
                     <div class="col">
                         <input type="radio" class="form-check-input" id="useDefaultTemplate4" name="defaultTemplate" value="4">
-                        <label class="form-check-label" for="useDefaultTemplate4">模板 4</label>
-                    </div>
-                    <div class="col">
-                        <input type="radio" class="form-check-input" id="useDefaultTemplate5" name="defaultTemplate" value="5">
-                        <label class="form-check-label" for="useDefaultTemplate4">模板 5</label>
+                        <label class="form-check-label" for="useDefaultTemplate4" data-translate="template4Label">Template 4</label>
                     </div>
                 </div>
                 <div class="mt-3">
                     <input type="radio" class="form-check-input" id="useCustomTemplate" name="templateOption" value="custom">
-                    <label class="form-check-label mb-3" for="useCustomTemplate">使用自定义模板URL</label>
-                    <input type="text" class="form-control" id="customTemplateUrl" name="customTemplateUrl" placeholder="输入自定义模板URL">
+                    <label class="form-check-label mb-3" for="useCustomTemplate" data-translate="useCustomTemplateLabel">Use Custom Template URL</label>
+                    <input type="text" class="form-control" id="customTemplateUrl" name="customTemplateUrl" placeholder="Enter custom template URL" data-translate-placeholder="customTemplateUrlPlaceholder">
                 </div>
             </fieldset>
             <div class="d-flex flex-wrap gap-2 mb-4">
                 <div class="col-auto">
                     <form method="post" action="">
                         <button type="submit" name="generateConfig" class="btn btn-info">
-                            <i class="bi bi-file-earmark-text"></i> 生成配置文件
+                            <i class="bi bi-file-earmark-text"></i> <span data-translate="generateConfigLabel">Generate Configuration File</span>
                         </button>
                     </form>
                 </div>
                 <div class="col-auto">
-                    <button type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#cronModal">
-                        <i class="bi bi-clock"></i> 设置定时任务
+                    <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#cronModal">
+                        <i class="bi bi-clock"></i> <span data-translate="setCronLabel">Set Cron Job</span>
                     </button>
                 </div>
                 <div class="col-auto">
                     <form method="post" action="">
                         <button type="submit" name="createShellScript" class="btn btn-primary">
-                            <i class="bi bi-terminal"></i> 生成更新脚本
+                            <i class="bi bi-terminal"></i> <span data-translate="generateShellLabel">Generate Update Script</span>
                         </button>
                     </form>
                 </div>
             </div>
+        </form>
         <div class="modal fade" id="cronModal" tabindex="-1" aria-labelledby="cronModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
-          <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-              <div class="modal-header">
-                <h5 class="modal-title" id="cronModalLabel">设置定时任务</h5>
-                <button type="button" class="close" data-bs-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
-              </div>
-              <form method="post" action="">
-                <div class="modal-body">
-                  <div class="mb-3">
-                    <label for="cronExpression" class="form-label">Cron 表达式</label>
-                    <input type="text" class="form-control" id="cronExpression" name="cronExpression" value="0 2 * * *" required>
-                  </div>
-                  <div class="alert alert-info">
-                    <strong>提示:</strong> Cron 表达式格式：
-                    <ul>
-                      <li><code>分钟 小时 日 月 星期</code></li>
-                      <li>示例: 每天凌晨 2 点: <code>0 2 * * *</code></li>
-                      <li>每周一凌晨 3 点: <code>0 3 * * 1</code></li>
-                      <li>工作日（周一至周五）的上午 9 点: <code>0 9 * * 1-5</code></li>
-                    </ul>
-                  </div>
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="cronModalLabel" data-translate="setCronModalTitle">Set Cron Job</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <form method="post" action="">
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <label for="cronExpression" class="form-label" data-translate="cronExpressionLabel">Cron Expression</label>
+                                <input type="text" class="form-control" id="cronExpression" name="cronExpression" value="0 2 * * *" required>
+                            </div>
+                            <div class="alert alert-info">
+                                <strong data-translate="cron_hint"></strong> <span data-translate="cron_expression_format"></span>
+                                <ul>
+                                    <li><span data-translate="cron_format_help"></span></li>
+                                    <li><span data-translate="cron_example"></span><code>0 2 * * *</code></li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-translate="cancelButton">Cancel</button>
+                            <button type="submit" name="setCron" class="btn btn-primary" data-translate="saveButton">Save</button>
+                        </div>
+                    </form>
                 </div>
-                <div class="modal-footer">
-                  <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                  <button type="submit" name="setCron" class="btn btn-primary">保存</button>
-                </div>
-              </form>
             </div>
-          </div>
         </div>
+    </div>
+</div>
+
 <script>
     document.querySelectorAll('input[name="defaultTemplate"]').forEach((elem) => {
         elem.addEventListener('change', function () {
@@ -294,7 +339,13 @@ EOL;
             $customTemplateUrl = trim($_POST['customTemplateUrl']);
             $templateOption = $_POST['templateOption'] ?? 'default';
             $currentTime = date('Y-m-d H:i:s');
-            $dataContent = $currentTime . " | 订阅链接地址: " . $subscribeUrl . "\n";            
+
+            $lang = $_GET['lang'] ?? 'en'; 
+            $lang = isset($translations[$lang]) ? $lang : 'en'; 
+            $subscribeLinkText = $langData[$currentLang]['subscriptionLink'] ?? 'Subscription Link Address';
+    
+            $dataContent = $currentTime . " | " . $subscribeLinkText . ": " . $subscribeUrl . "\n";     
+    
             $customFileName = trim($_POST['customFileName']);
             if (empty($customFileName)) {
                $customFileName = 'sing-box';  
@@ -350,14 +401,14 @@ EOL;
                 exec($command, $output, $returnVar);
 
             if ($returnVar !== 0) {
-                $logMessages[] = "无法下载内容: " . htmlspecialchars($completeSubscribeUrl);
+                $logMessages[] = "Unable to download content: " . htmlspecialchars($completeSubscribeUrl);
                 }
             }
 
             if ($returnVar === 0) {
                 $downloadedContent = file_get_contents($tempFilePath);
                 if ($downloadedContent === false) {
-                    $logMessages[] = "无法读取下载的文件内容";
+                    $logMessages[] = "Unable to read the downloaded file content";
                 } else {
                     $downloadedContent = preg_replace_callback(
                         '/\{\s*"tag":\s*"(.*?)",\s*"type":\s*"selector",\s*"outbounds":\s*\[\s*"Proxy"\s*\]\s*\}/s',
@@ -381,23 +432,23 @@ EOL;
 
                     $tmpFileSavePath = '/etc/neko/proxy_provider/' . $fixedFileName;  
                     if (file_put_contents($tmpFileSavePath, $completeSubscribeUrl) === false) {
-                        $logMessages[] = "无法保存订阅URL到文件: " . $tmpFileSavePath;
+                        $logMessages[] = $translations['save_subscribe_url_failed'] . $tmpFileSavePath;
                     } else {
-                        $logMessages[] = "订阅URL已成功保存到文件: " . $tmpFileSavePath;
+                        $logMessages[] = $translations['subscribe_url_saved'] . $tmpFileSavePath;
                     }
 
                     $configFilePath = '/etc/neko/config/' . $customFileName; 
                     if (file_put_contents($configFilePath, $downloadedContent) === false) {
-                        $logMessages[] = "无法保存修改后的内容到: " . $configFilePath;
+                        $logMessages[] = $translations['save_config_failed'] . $configFilePath;
                     } else {
-                        $logMessages[] = "配置文件生成并保存成功: " . $configFilePath;
+                        $logMessages[] = $translations['config_saved'] . $configFilePath;
                     }
 
                     if (file_exists($tempFilePath)) {
                         unlink($tempFilePath); 
-                        $logMessages[] = "临时文件已被清理: " . $tempFilePath;
+                        $logMessages[] = $translations['temp_file_cleaned'] . $tempFilePath;
                     } else {
-                        $logMessages[] = "未找到临时文件以进行清理: " . $tempFilePath;
+                        $logMessages[] = $translations['temp_file_not_found'] . $tempFilePath;
                     }
                 }
             }
@@ -408,9 +459,9 @@ EOL;
             echo "<textarea id='configContent' name='configContent' class='form-control' style='height: 300px;'>" . htmlspecialchars($downloadedContent) . "</textarea>";
             echo "</div>";
             echo "<div class='text-center' mb-3>";
-            echo "<button class='btn btn-info me-3' type='button' onclick='copyToClipboard()'><i class='bi bi-clipboard'></i> 复制到剪贴</button>";
+            echo "<button class='btn btn-info me-3' type='button' onclick='copyToClipboard()'><i class='bi bi-clipboard'></i> " . $translations['copy_to_clipboard'] . "</button>";
             echo "<input type='hidden' name='saveContent' value='1'>";
-            echo "<button class='btn btn-success' type='submit'><i class='bi bi-save'></i>保存修改</button>";
+            echo "<button class='btn btn-success' type='submit'><i class='bi bi-save'></i> " . $translations['save_changes'] . "</button>";
             echo "</div>";
             echo "</form>";
             echo "</div>";
@@ -425,9 +476,9 @@ EOL;
             if (isset($_POST['configContent'])) {
                 $editedContent = trim($_POST['configContent']);
                 if (file_put_contents($configFilePath, $editedContent) === false) {
-                    echo "<div class='alert alert-danger'>无法保存修改后的内容到: " . htmlspecialchars($configFilePath) . "</div>";
+                    echo "<div class='alert alert-danger'>" . $translations['error_save_content'] . htmlspecialchars($configFilePath) . "</div>";
                 } else {
-                    echo "<div class='alert alert-success'>内容已成功保存到: " . htmlspecialchars($configFilePath) . "</div>";
+                    echo "<div class='alert alert-success'>" . $translations['success_save_content'] . htmlspecialchars($configFilePath) . "</div>";
                 }
             }
         }
@@ -435,18 +486,20 @@ EOL;
         if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['clearData'])) {
             if (file_exists($dataFilePath)) {
                 file_put_contents($dataFilePath, '');
-                echo "<div class='alert alert-success'>保存的数据已清空。</div>";
+                echo "<div class='alert alert-success'>" . $translations['save_data_cleared'] . "</div>";
             }
         }
 
         if (file_exists($dataFilePath)) {
             $savedData = file_get_contents($dataFilePath);
+            echo "<div class='container'>";
             echo "<div class='card'>";
             echo "<div class='card-body'>";
-            echo "<h2 class='card-title'>保存的数据</h2>";
+            echo "<h2 class='card-title'>" . $translations['data_saved'] . "</h2>";
             echo "<pre>" . htmlspecialchars($savedData) . "</pre>";
             echo "<form method='post' action=''>";
-            echo "<button class='btn btn-danger' type='submit' name='clearData'>清空数据</button>";
+            echo '<input type="hidden" name="lang" value="' . $currentLang . '">'; 
+            echo '<button class="btn btn-danger" type="submit" name="clearData"><i class="bi bi-trash"></i> ' . $translations['clear_data'] . '</button>';
             echo "</form>";
             echo "</div>";
             echo "</div>";
@@ -462,7 +515,7 @@ EOL;
         const copyText = document.getElementById("configContent");
         copyText.select();
         document.execCommand("copy");
-        alert("已复制到剪贴板");
+        alert("Copied to clipboard");
     }
 </script>
 

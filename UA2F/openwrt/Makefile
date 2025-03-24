@@ -1,7 +1,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=UA2F
-PKG_VERSION:=4.9.6
+PKG_VERSION:=4.10.1
 PKG_RELEASE:=1
 
 PKG_LICENSE:=GPL-3.0-only
@@ -46,36 +46,36 @@ define Package/ua2f/config
     help
       Specify the custom User-Agent string to use when UA2F_CUSTOM_USER_AGENT is enabled.
 
-  config UA2F_DEBUG_BUILD
-    bool "Enable debug build"
+  config UA2F_ENABLE_LIBBACKTRACE
+    bool "Enable libbacktrace support"
     depends on PACKAGE_ua2f
-    default n
+    default y
     help
-      Enable this option to build UA2F with debug symbols and optimizations disabled.
+      Enable this option to use libbacktrace for better error reporting.
+      This will increase the binary size but provide more detailed error information.
+
 endef
 
 CMAKE_OPTIONS += \
 	-DUA2F_VERSION_STR="$(PKG_VERSION)" \
 	-DUA2F_CUSTOM_USER_AGENT=$(if $(CONFIG_UA2F_CUSTOM_USER_AGENT),ON,OFF) \
 	-DUA2F_USER_AGENT_STRING=$(CONFIG_UA2F_USER_AGENT_STRING) \
-	-DCMAKE_BUILD_TYPE=$(if $(CONFIG_UA2F_DEBUG_BUILD),Debug,Release)
+	-DUA2F_ENABLE_BACKTRACE=$(if $(CONFIG_UA2F_ENABLE_LIBBACKTRACE),ON,OFF) \
+	-DCMAKE_BUILD_TYPE=RelWithDebInfo
 
-ifeq ($(CONFIG_UA2F_DEBUG_BUILD),y)
-  STRIP:=true
-endif
+STRIP:=true
 
 define Package/ua2f/description
-  Change User-agent to Fwords to prevent being checked by Dr.Com.
+  Change User-agent to Fwords to prevent being detected.
 endef
 
 define Package/ua2f/install
 	$(INSTALL_DIR) $(1)/usr/bin
 	$(INSTALL_BIN) $(PKG_INSTALL_DIR)/usr/bin/ua2f $(1)/usr/bin/
 
-	$(INSTALL_DIR) $(1)/etc/config $(1)/etc/init.d $(1)/etc/uci-defaults
+	$(INSTALL_DIR) $(1)/etc/config $(1)/etc/init.d
 	$(INSTALL_BIN) ./files/ua2f.config $(1)/etc/config/ua2f
 	$(INSTALL_BIN) ./files/ua2f.init $(1)/etc/init.d/ua2f
-	$(INSTALL_BIN) ./files/ua2f.uci $(1)/etc/uci-defaults/80-ua2f
 endef
 
 define Package/ua2f/postinst
@@ -83,7 +83,18 @@ define Package/ua2f/postinst
 
 # check if we are on real system
 [ -n "$${IPKG_INSTROOT}" ] || {
-	(. /etc/uci-defaults/80-ua2f) && rm -f /etc/uci-defaults/80-ua2f
+	uci -q delete firewall.ua2f
+
+	if [ -z "$(command -v nft)" ]; then
+		uci -q batch <<-EOF >/dev/null
+			set firewall.ua2f=include
+			set firewall.ua2f.type=script
+			set firewall.ua2f.path=/var/etc/ua2f.include
+			set firewall.ua2f.reload=1
+		EOF
+	fi
+
+	uci -q commit firewall
 	exit 0
 }
 endef

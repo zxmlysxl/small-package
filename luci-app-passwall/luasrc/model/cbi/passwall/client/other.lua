@@ -58,8 +58,7 @@ for index, value in ipairs({"stop", "start", "restart"}) do
 end
 
 -- [[ Forwarding Settings ]]--
-s = m:section(TypedSection, "global_forwarding",
-			  translate("Forwarding Settings"))
+s = m:section(TypedSection, "global_forwarding", translate("Forwarding Settings"))
 s.anonymous = true
 s.addremove = false
 
@@ -124,13 +123,16 @@ if (os.execute("lsmod | grep -i REDIRECT >/dev/null") == 0 and os.execute("lsmod
 	o:value("redirect", "REDIRECT")
 	o:value("tproxy", "TPROXY")
 	o:depends("ipv6_tproxy", false)
+	o.remove = function(self, section)
+		-- 禁止在隐藏时删除
+	end
 
 	o = s:option(ListValue, "_tcp_proxy_way", translate("TCP Proxy Way"))
 	o.default = "tproxy"
 	o:value("tproxy", "TPROXY")
 	o:depends("ipv6_tproxy", true)
 	o.write = function(self, section, value)
-		return self.map:set(section, "tcp_proxy_way", value)
+		self.map:set(section, "tcp_proxy_way", value)
 	end
 
 	if os.execute("lsmod | grep -i ip6table_mangle >/dev/null") == 0 or os.execute("lsmod | grep -i nft_tproxy >/dev/null") == 0 then
@@ -219,6 +221,7 @@ if has_xray then
 	o = s_xray_noise:option(ListValue, "type", translate("Type"))
 	o:value("rand", "rand")
 	o:value("str", "str")
+	o:value("hex", "hex")
 	o:value("base64", "base64")
 
 	o = s_xray_noise:option(Value, "packet", translate("Packet"))
@@ -239,42 +242,6 @@ if has_singbox then
 	o.default = 0
 	o.rmempty = false
 	o.description = translate("Override the connection destination address with the sniffed domain.<br />When enabled, traffic will match only by domain, ignoring IP rules.<br />If using shunt nodes, configure the domain shunt rules correctly.")
-
-	o = s:option(Value, "geoip_path", translate("Custom geoip Path"))
-	o.default = "/usr/share/singbox/geoip.db"
-	o.rmempty = false
-
-	o = s:option(Value, "geoip_url", translate("Custom geoip URL"))
-	o.default = "https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip.db"
-	o:value("https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip.db")
-	o:value("https://github.com/1715173329/sing-geoip/releases/latest/download/geoip.db")
-	o:value("https://github.com/lyc8503/sing-box-rules/releases/latest/download/geoip.db")
-	o.rmempty = false
-
-	o = s:option(Value, "geosite_path", translate("Custom geosite Path"))
-	o.default = "/usr/share/singbox/geosite.db"
-	o.rmempty = false
-
-	o = s:option(Value, "geosite_url", translate("Custom geosite URL"))
-	o.default = "https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geosite.db"
-	o:value("https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geosite.db")
-	o:value("https://github.com/1715173329/sing-geosite/releases/latest/download/geosite.db")
-	o:value("https://github.com/lyc8503/sing-box-rules/releases/latest/download/geosite.db")
-	o.rmempty = false
-
-	o = s:option(Button, "_remove_resource", translate("Remove resource files"))
-	o.description = translate("Sing-Box will automatically download resource files when starting, you can use this feature achieve upgrade resource files.")
-	o.inputstyle = "remove"
-	function o.write(self, section, value)
-		local geoip_path = s.fields["geoip_path"] and s.fields["geoip_path"]:formvalue(section) or nil
-		if geoip_path then
-			os.remove(geoip_path)
-		end
-		local geosite_path = s.fields["geosite_path"] and s.fields["geosite_path"]:formvalue(section) or nil
-		if geosite_path then
-			os.remove(geosite_path)
-		end
-	end
 end
 
 return m
