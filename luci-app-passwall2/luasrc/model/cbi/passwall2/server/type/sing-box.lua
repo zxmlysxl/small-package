@@ -2,11 +2,16 @@ local m, s = ...
 
 local api = require "luci.passwall2.api"
 
-local singbox_bin = api.finded_com("singbox")
+local singbox_bin = api.finded_com("sing-box")
 
 if not singbox_bin then
 	return
 end
+
+local local_version = api.get_app_version("sing-box")
+local version_ge_1_12_0 = api.compare_versions(local_version:match("[^v]+"), ">=", "1.12.0")
+
+local fs = api.fs
 
 local singbox_tags = luci.sys.exec(singbox_bin .. " version  | grep 'Tags:' | awk '{print $2}'")
 
@@ -26,6 +31,9 @@ local ss_method_list = {
 -- [[ Sing-Box ]]
 
 s.fields["type"]:value(type_name, "Sing-Box")
+if not s.fields["type"].default then
+	s.fields["type"].default = type_name
+end
 
 o = s:option(ListValue, _n("protocol"), translate("Protocol"))
 o:value("mixed", "Mixed")
@@ -44,6 +52,9 @@ if singbox_tags:find("with_quic") then
 end
 if singbox_tags:find("with_quic") then
 	o:value("hysteria2", "Hysteria2")
+end
+if version_ge_1_12_0 then
+	o:value("anytls", "AnyTLS")
 end
 o:value("direct", "Direct")
 
@@ -68,6 +79,7 @@ o:depends({ [_n("protocol")] = "http" })
 o = s:option(Value, _n("username"), translate("Username"))
 o:depends({ [_n("auth")] = true })
 o:depends({ [_n("protocol")] = "naive" })
+o:depends({ [_n("protocol")] = "anytls" })
 
 o = s:option(Value, _n("password"), translate("Password"))
 o.password = true
@@ -75,6 +87,7 @@ o:depends({ [_n("auth")] = true })
 o:depends({ [_n("protocol")] = "shadowsocks" })
 o:depends({ [_n("protocol")] = "naive" })
 o:depends({ [_n("protocol")] = "tuic" })
+o:depends({ [_n("protocol")] = "anytls" })
 
 if singbox_tags:find("with_quic") then
 	o = s:option(Value, _n("hysteria_up_mbps"), translate("Max upload Mbps"))
@@ -218,6 +231,7 @@ o:depends({ [_n("protocol")] = "http" })
 o:depends({ [_n("protocol")] = "vmess" })
 o:depends({ [_n("protocol")] = "vless" })
 o:depends({ [_n("protocol")] = "trojan" })
+o:depends({ [_n("protocol")] = "anytls" })
 
 if singbox_tags:find("with_reality_server") then
 	-- [[ REALITY部分 ]] --
@@ -227,6 +241,7 @@ if singbox_tags:find("with_reality_server") then
 	o:depends({ [_n("protocol")] = "vmess", [_n("tls")] = true })
 	o:depends({ [_n("protocol")] = "vless", [_n("tls")] = true })
 	o:depends({ [_n("protocol")] = "trojan", [_n("tls")] = true })
+	o:depends({ [_n("protocol")] = "anytls", [_n("tls")] = true })
 	
 	o = s:option(Value, _n("reality_private_key"), translate("Private Key"))
 	o:depends({ [_n("reality")] = true })

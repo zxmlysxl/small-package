@@ -2,11 +2,14 @@ local m, s = ...
 
 local api = require "luci.passwall2.api"
 
-local singbox_bin = api.finded_com("singbox")
+local singbox_bin = api.finded_com("sing-box")
 
 if not singbox_bin then
 	return
 end
+
+local local_version = api.get_app_version("sing-box")
+local version_ge_1_12_0 = api.compare_versions(local_version:match("[^v]+"), ">=", "1.12.0")
 
 local singbox_tags = luci.sys.exec(singbox_bin .. " version  | grep 'Tags:' | awk '{print $2}'")
 
@@ -33,6 +36,9 @@ local security_list = { "none", "auto", "aes-128-gcm", "chacha20-poly1305", "zer
 -- [[ sing-box ]]
 
 s.fields["type"]:value(type_name, translate("Sing-Box"))
+if not s.fields["type"].default then
+	s.fields["type"].default = type_name
+end
 
 o = s:option(ListValue, _n("protocol"), translate("Protocol"))
 o:value("socks", "Socks")
@@ -55,6 +61,9 @@ if singbox_tags:find("with_quic") then
 end
 if singbox_tags:find("with_quic") then
 	o:value("hysteria2", "Hysteria2")
+end
+if version_ge_1_12_0 then
+	o:value("anytls", "AnyTLS")
 end
 o:value("_urltest", translate("URLTest"))
 o:value("_shunt", translate("Shunt"))
@@ -251,6 +260,7 @@ o:depends({ [_n("protocol")] = "shadowsocks" })
 o:depends({ [_n("protocol")] = "shadowsocksr" })
 o:depends({ [_n("protocol")] = "trojan" })
 o:depends({ [_n("protocol")] = "tuic" })
+o:depends({ [_n("protocol")] = "anytls" })
 
 o = s:option(ListValue, _n("security"), translate("Encrypt Method"))
 for a, t in ipairs(security_list) do o:value(t) end
@@ -401,6 +411,10 @@ if singbox_tags:find("with_quic") then
 end
 
 if singbox_tags:find("with_quic") then
+	o = s:option(Value, _n("hysteria2_hop"), translate("Port hopping range"))
+	o.description = translate("Format as 1000:2000 or 1000-2000 Multiple groups are separated by commas (,).")
+	o:depends({ [_n("protocol")] = "hysteria2" })
+
 	o = s:option(Value, _n("hysteria2_up_mbps"), translate("Max upload Mbps"))
 	o:depends({ [_n("protocol")] = "hysteria2" })
 
@@ -427,6 +441,7 @@ o:depends({ [_n("protocol")] = "vless" })
 o:depends({ [_n("protocol")] = "http" })
 o:depends({ [_n("protocol")] = "trojan" })
 o:depends({ [_n("protocol")] = "shadowsocks" })
+o:depends({ [_n("protocol")] = "anytls" })
 
 o = s:option(ListValue, _n("alpn"), translate("alpn"))
 o.default = "default"
@@ -438,6 +453,14 @@ o:value("http/1.1")
 o:value("h2,http/1.1")
 o:value("h3,h2,http/1.1")
 o:depends({ [_n("tls")] = true })
+
+o = s:option(Flag, _n("tls_disable_sni"), translate("Disable SNI"), translate("Do not send server name in ClientHello."))
+o.default = "0"
+o:depends({ [_n("tls")] = true })
+o:depends({ [_n("protocol")] = "hysteria"})
+o:depends({ [_n("protocol")] = "tuic" })
+o:depends({ [_n("protocol")] = "hysteria2" })
+o:depends({ [_n("protocol")] = "shadowsocks" })
 
 o = s:option(Value, _n("tls_serverName"), translate("Domain"))
 o:depends({ [_n("tls")] = true })
@@ -512,6 +535,7 @@ if singbox_tags:find("with_utls") then
 	o:depends({ [_n("protocol")] = "shadowsocks", [_n("utls")] = true })
 	o:depends({ [_n("protocol")] = "socks", [_n("utls")] = true })
 	o:depends({ [_n("protocol")] = "trojan", [_n("utls")] = true })
+	o:depends({ [_n("protocol")] = "anytls", [_n("utls")] = true })
 	
 	o = s:option(Value, _n("reality_publicKey"), translate("Public Key"))
 	o:depends({ [_n("utls")] = true, [_n("reality")] = true })
@@ -737,6 +761,7 @@ o:depends({ [_n("protocol")] = "hysteria" })
 o:depends({ [_n("protocol")] = "vless" })
 o:depends({ [_n("protocol")] = "tuic" })
 o:depends({ [_n("protocol")] = "hysteria2" })
+o:depends({ [_n("protocol")] = "anytls" })
 
 o = s:option(ListValue, _n("chain_proxy"), translate("Chain Proxy"))
 o:value("", translate("Close(Not use)"))

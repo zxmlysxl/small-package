@@ -20,15 +20,26 @@ FAKE_IP="198.18.0.0/16"
 FAKE_IP_6="fc00::/18"
 
 factor() {
-	if [ -z "$1" ] || [ -z "$2" ]; then
-		echo ""
-	elif [ "$1" == "1:65535" ]; then
+	local ports="$1"
+	if [ -z "$1" ] || [ -z "$2" ] || [ "$ports" = "1:65535" ]; then
 		echo ""
 	# acl mac address
-	elif [ -n "$(echo $1 | grep -E '([A-Fa-f0-9]{2}:){5}[A-Fa-f0-9]{2}')" ]; then
+	elif echo "$1" | grep -qE '([A-Fa-f0-9]{2}:){5}[A-Fa-f0-9]{2}'; then
 		echo "$2 {$1}"
 	else
-		echo "$2 {$(echo $1 | sed 's/:/-/g')}"
+		ports=$(echo "$ports" | tr -d ' ' | sed 's/:/-/g' | tr ',' '\n' | awk '!a[$0]++' | grep -v '^$')
+		[ -z "$ports" ] && { echo ""; return; }
+		if echo "$ports" | grep -q '^1-65535$'; then
+			echo ""
+			return
+		fi
+		local port
+		local port_list=""
+		for port in $ports; do
+			port_list="${port_list},$port"
+		done
+		port_list="${port_list#,}"
+		echo "$2 {$port_list}"
 	fi
 }
 
@@ -519,7 +530,7 @@ load_acl() {
 				nft "add rule $NFTABLE_NAME PSW2_MANGLE_V6 meta l4proto udp ${_ipt_source} counter return comment \"$remarks\"" 2>/dev/null
 				unset nft_chain nft_j _ipt_source msg msg2
 			done
-			unset enabled sid remarks sources tcp_proxy_mode udp_proxy_mode tcp_no_redir_ports udp_no_redir_ports tcp_redir_ports udp_redir_ports node interface
+			unset enabled sid remarks sources tcp_proxy_mode udp_proxy_mode tcp_no_redir_ports udp_no_redir_ports tcp_redir_ports udp_redir_ports node interface write_ipset_direct
 			unset redir_port node_remark _acl_list
 		done
 	}
