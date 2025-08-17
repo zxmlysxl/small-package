@@ -1712,11 +1712,11 @@ function saveEdit() {
 }
 
 const monacoScript = document.createElement('script');
-monacoScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.52.2/min/vs/loader.min.js';
+monacoScript.src = 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.min.js';
 document.head.appendChild(monacoScript);
 
 monacoScript.onload = function() {
-    require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.52.2/min/vs' } });
+    require.config({ paths: { 'vs': 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs' } });
 };
 
 function openMonacoEditor() {
@@ -1869,58 +1869,6 @@ function openMonacoEditor() {
     };
 }
 
-function registerCompletionProviders() {
-    monaco.languages.registerCompletionItemProvider('php', {
-        provideCompletionItems: function(model, position) {
-            return {
-                suggestions: [
-                    {
-                        label: 'echo',
-                        kind: monaco.languages.CompletionItemKind.Keyword,
-                        insertText: 'echo "${1}";',
-                        insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet
-                    },
-                    {
-                        label: 'function',
-                        kind: monaco.languages.CompletionItemKind.Keyword,
-                        insertText: 'function ${1:name}() {\n\t${2}\n}',
-                        insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet
-                    },
-                    {
-                        label: 'foreach',
-                        kind: monaco.languages.CompletionItemKind.Snippet,
-                        insertText: 'foreach ($${1:array} as $${2:key} => $${3:value}) {\n\t${4}\n}',
-                        insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-                        documentation: 'Inserts a foreach loop in PHP'
-                    }
-                ]
-            };
-        }
-    });
-
-    monaco.languages.registerCompletionItemProvider('javascript', {
-        provideCompletionItems: function(model, position) {
-            return {
-                suggestions: [
-                    {
-                        label: 'console.log',
-                        kind: monaco.languages.CompletionItemKind.Function,
-                        insertText: 'console.log(${1});',
-                        insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet
-                    },
-                    {
-                        label: 'for',
-                        kind: monaco.languages.CompletionItemKind.Snippet,
-                        insertText: 'for (let ${1:i} = 0; ${1:i} < ${2:length}; ${1:i}++) {\n\t${3}\n}',
-                        insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-                        documentation: 'Inserts a for loop in JavaScript'
-                    }
-                ]
-            };
-        }
-    });
-}
-
 function setEditorMode(ext) {
     const modes = {
         'js': 'javascript',
@@ -2021,6 +1969,7 @@ function openDiffEditor(originalContent, modifiedContent) {
     diffContainer.id = 'diffEditorContainer';
     diffContainer.style.width = '100%';
     diffContainer.style.height = 'calc(100% - 40px)';
+    diffContainer.style.marginTop = '50px';  
     document.getElementById('monacoEditor').appendChild(diffContainer);
 
     diffEditorInstance = monaco.editor.createDiffEditor(diffContainer, {
@@ -2028,10 +1977,16 @@ function openDiffEditor(originalContent, modifiedContent) {
         automaticLayout: true
     });
 
+    const originalModel = monaco.editor.createModel(modifiedContent, 'text');
+    const modifiedModel = monaco.editor.createModel(originalContent, 'text');
+
     diffEditorInstance.setModel({
-        original: monaco.editor.createModel(originalContent, 'text'),
-        modified: monaco.editor.createModel(modifiedContent, 'text')
+        original: originalModel,
+        modified: modifiedModel
     });
+
+    originalModel.updateOptions({ readOnly: true });
+    modifiedModel.updateOptions({ readOnly: false });
 
     const existingCloseDiffBtn = document.querySelector('#leftControls button[data-role="closeDiff"]');
     if (existingCloseDiffBtn) {
